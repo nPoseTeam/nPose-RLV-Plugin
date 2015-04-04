@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): RLV+.nPose-RLV-Plugin.maintainVictimsListTest.lslp Thu Apr  2 22:55:28 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): RLV+.nPose-RLV-Plugin.DebuggingAndExamples.maintainVictimsListTest.lslp Sat Apr  4 09:26:30 Mitteleuropäische Sommerzeit 2015
 
 
 list victimsList;
