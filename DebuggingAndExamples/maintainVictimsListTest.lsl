@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): DebuggingAndExamples.maintainVictimsListTest.lslp Sun Apr  5 10:16:23 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): DebuggingAndExamples.maintainVictimsListTest.lslp Sun Apr  5 14:07:52 Mitteleuropäische Sommerzeit 2015
 
 
 list victimsList;

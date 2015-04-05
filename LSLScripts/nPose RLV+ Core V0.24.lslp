@@ -1,6 +1,7 @@
 $import LSLScripts.lib.macros.lslm (
 	VictimsList=VictimsList,
 	FreeVictimsList=FreeVictimsList,
+	DomList=DomList,
 	GrabList=GrabList,
 	RecaptureList=RecaptureList,
 	SensorList=SensorList,
@@ -18,11 +19,13 @@ $import LSLScripts.lib.macros.lslm (
 
 	VICTIMS_LIST_STRIDE=VICTIMS_LIST_STRIDE,
 	
+	FREE_VICTIMS_LIST_STRIDE=FREE_VICTIMS_LIST_STRIDE,
+	
+	DOM_LIST_STRIDE=DOM_LIST_STRIDE,
+	
 	GRAB_LIST_MAX_ENTRIES=GRAB_LIST_MAX_ENTRIES,
 	GRAB_LIST_STRIDE=GRAB_LIST_STRIDE,
 	GRAB_LIST_TIMEOUT=GRAB_LIST_TIMEOUT,
-
-	FREE_VICTIMS_LIST_STRIDE=FREE_VICTIMS_LIST_STRIDE,
 
 	RECAPTURE_LIST_MAX_ENTRIES=RECAPTURE_LIST_MAX_ENTRIES,
 	RECAPTURE_LIST_STRIDE=RECAPTURE_LIST_STRIDE,
@@ -176,30 +179,36 @@ string  NPosePath;      // which npose dialog to show when rlv part finished
 key VictimKey=NULL_KEY; // contains active victim key
 //integer currentVictimIndex=-1; //contains the VictimsList-index of the current victim
 
-list VictimsList;
+//a sitting avatar is either in the VvictimsList or in the FreeVictimsList or in the DomList
+
+list VictimsList; //Avatars in this list are sitting on an rlvEnabled seat and are considered as restricted
 //integer VICTIMS_LIST_AVATAR_UUID=0;
 integer VICTIMS_LIST_TIMER=1;
 integer VICTIMS_LIST_RELAY=2; //version of the rlv relay protocol (0: means no relay detected)
 integer VICTIMS_LIST_STRIDE=3;
 
-list FreeVictimsList;
+list FreeVictimsList; //Avatars in this list are sitting on an rlvEnabled seat but are NOT considered as restricted
 //integer FREE_VICTIMS_LIST_AVATAR_UUID=0;
 integer FREE_VICTIMS_LIST_STRIDE=1;
 
-list GrabList;
+list DomList; //Avatars in this list are sitting on an nonRrlvEnabled seat
+//integer DOM_LIST_AVATAR_UUID=0;
+integer DOM_LIST_STRIDE=1;
+
+list GrabList; //Avatars in this list are scheduled to be grabbed
 integer GRAB_LIST_MAX_ENTRIES=3;
 //integer GRAB_LIST_AVATAR_UUID=0;
 integer GRAB_LIST_TIMEOUT=1;
 integer GRAB_LIST_STRIDE=2;
 
-list RecaptureList;
+list RecaptureList; //Avatars in this list are scheduled to be recaptured
 integer RECAPTURE_LIST_MAX_ENTRIES=5;
 ///integer RECAPTURE_LIST_AVATAR_UUID=0;
 integer RECAPTURE_LIST_TIMER=1;
 integer RECAPTURE_LIST_TIMEOUT=2;
 integer RECAPTURE_LIST_STRIDE=3;
 
-list SensorList;
+list SensorList; //a temp list for grabbing
 //integer SENSOR_LIST_AVATAR_NAME=0;
 integer SENSOR_LIST_AVATAR_UUID=1;
 integer SENSOR_LIST_STRIDE=2;
@@ -382,46 +391,35 @@ default {
 						integer n=llListFindList(SensorList, [selection]);
 						if(~n) {
 							key avatarWorkingOn=llList2Key(SensorList, n + SENSOR_LIST_AVATAR_UUID);
-							integer counter  = llGetNumberOfPrims();
-							while(llGetAgentSize(llGetLinkKey(counter))) {
-								if(avatarWorkingOn==llGetLinkKey(counter)) {
-									//the avatar we want to capture is already sitting
-									if(~getVictimIndex(avatarWorkingOn)) {
-										//The Avatar is in the victims list, this means he is sitting on an RLV enabled seat. Reapply RLV Base Restrictions.
-										sendToRlvRelay(avatarWorkingOn, RlvBaseRestrictions, "");
-										changeCurrentVictim(avatarWorkingOn);
-										//send the user back to main Menu
-										showMainMenu(NPosetoucherID);
-										return;
-									}
-									else if(~getFreeVictimIndex(avatarWorkingOn)) {
-										//this is a previously released victim, regrab him
-										removeFromFreeVictimsList(avatarWorkingOn);
-										addToVictimsList(avatarWorkingOn, RLV_grabTimer);
-										changeCurrentVictim(avatarWorkingOn);
-										// send them back to the nPose menu cause current victim doesn't
-										// update real time.  this will give time to update
-										Path = "";
-										llMessageLinked( LINK_SET, DOMENU, NPosePath, NPosetoucherID );
-										return;
-									}
-									else {
-										//he is NOT a victim .. that implies that he sits on a NON RLV enabled seat. Do nothing
-										showMainMenu(NPosetoucherID);
-										return;
-									}
-								}
-								counter--;
+							if(~getVictimIndex(avatarWorkingOn)) {
+								//the Avatar is in the victims list, this means he is sitting on an RLV enabled seat. Reapply RLV Base Restrictions
+								sendToRlvRelay(avatarWorkingOn, RlvBaseRestrictions, "");
+								changeCurrentVictim(avatarWorkingOn);
+								//send the user back to main Menu
+								showMainMenu(NPosetoucherID);
 							}
-							//if we come to this point, the Avatar is not sitting. Make him sit.
-							//he will become a real victim when sitting on a RLV enabled seat
-							addToGrabList(avatarWorkingOn);
-							sendToRlvRelay(avatarWorkingOn, "@sit:" + (string)llGetKey() + "=force", "");
-		
-							// send them back to the nPose menu cause current victim doesn't
-							// update real time.  this will give time to update
-							Path = "";
-							llMessageLinked( LINK_SET, DOMENU, NPosePath, NPosetoucherID );
+							else if(~getFreeVictimIndex(avatarWorkingOn)) {
+								//this is a previously released victim, regrab him
+								addToVictimsList(avatarWorkingOn, RLV_grabTimer);
+								changeCurrentVictim(avatarWorkingOn);
+								// send them back to the nPose menu cause current victim doesn't
+								// update real time.  this will give time to update
+								llMessageLinked( LINK_SET, DOMENU, NPosePath, NPosetoucherID );
+							}
+							else if(~getDomIndex(avatarWorkingOn)) {
+								//he is NOT a victim .. that implies that he sits on a NON RLV enabled seat. Do nothing
+								showMainMenu(NPosetoucherID);
+							}
+							else {
+								//the Avatar is not sitting. Make him sit.
+								//he will become a real victim when sitting on a RLV enabled seat
+								addToGrabList(avatarWorkingOn);
+								sendToRlvRelay(avatarWorkingOn, "@sit:" + (string)llGetKey() + "=force", "");
+			
+								// send them back to the nPose menu cause current victim doesn't
+								// update real time.  this will give time to update
+								llMessageLinked( LINK_SET, DOMENU, NPosePath, NPosetoucherID );
+							}
 						}
 					}
 				}
@@ -578,8 +576,7 @@ default {
 						if(~getVictimIndex(avatarWorkingOn) || ~getRecaptureIndex(avatarWorkingOn)) {
 							sendToRlvRelay(avatarWorkingOn, RLV_COMMAND_RELEASE, "");
 						}
-						removeFromVictimsList(avatarWorkingOn);
-						removeFromFreeVictimsList(avatarWorkingOn);
+						addToDomList(avatarWorkingOn);
 					}
 				}
 				else {
@@ -602,6 +599,14 @@ default {
 				key avatarWorkingOn=llList2Key(FreeVictimsList, index);
 				if(!~llListFindList(slotsList, [(string)avatarWorkingOn])) {
 					removeFromFreeVictimsList(avatarWorkingOn);
+				}
+			}
+			length=llGetListLength(DomList);
+			index=0;
+			for(; index < length; index+=DOM_LIST_STRIDE) {
+				key avatarWorkingOn=llList2Key(DomList, index);
+				if(!~llListFindList(slotsList, [(string)avatarWorkingOn])) {
+					removeFromDomList(avatarWorkingOn);
 				}
 			}
 
@@ -650,10 +655,13 @@ default {
 				+ ", Leaving " + (string)llGetFreeMemory() + " memory free." );
 		}
 		else if(num==RLV_CORE_DUMP_DEBUG_STRING) {
-			debug(["VictimsList"] + VictimsList);
-			debug(["FreeVictimsList"] + FreeVictimsList);
-			debug(["GrabList"] + GrabList);
-			debug(["RecaptureList"] + RecaptureList);
+			debug(
+				  ["VictimsList"] + VictimsList
+				+ ["####", "FreeVictimsList"] + FreeVictimsList
+				+ ["####", "DomList"] + DomList
+				+ ["####", "GrabList"] + GrabList
+				+ ["####", "RecaptureList"] + RecaptureList
+			);
 		}
 	} // link_message
 
@@ -732,7 +740,6 @@ default {
 			if(time && time<=currentTime) {
 				key avatarWorkingOn=llList2Key(VictimsList, index);
 				sendToRlvRelay(avatarWorkingOn, RLV_COMMAND_RELEASE, "");
-				removeFromVictimsList(avatarWorkingOn);
 				addToFreeVictimsList(avatarWorkingOn);
 			}
 		}
@@ -743,7 +750,9 @@ default {
 		SensorList=[];
 		integer n;
 		for( n=0; n<num; ++n ) {
-			SensorList += [llGetSubString(llDetectedName(n), 0, BUTTON_MAX_LENGHT - 1), llDetectedKey(n)];
+			if(!~getVictimIndex(llDetectedKey(n)) && !~getDomIndex(llDetectedKey(n)) && !~getGrabIndex(llDetectedKey(n))) {
+				SensorList += [llGetSubString(llDetectedName(n), 0, BUTTON_MAX_LENGHT - 1), llDetectedKey(n)];
+			}
 		}
 		showMenu(NPosetoucherID, PROMPT_CAPTURE, llList2ListStrided(SensorList, 0, -1, 2), MENU_RLV_MAIN + PATH_SEPARATOR + MENU_RLV_CAPTURE);
 	}

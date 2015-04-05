@@ -1,6 +1,7 @@
-$module(
+$module (
 	list VictimsList,
 	list FreeVictimsList,
+	list DomList,
 	list GrabList,
 	list RecaptureList,
 	list SensorList,
@@ -18,12 +19,14 @@ $module(
 
 	integer VICTIMS_LIST_STRIDE,
 	
+	integer FREE_VICTIMS_LIST_STRIDE,
+	
+	integer DOM_LIST_STRIDE,
+	
 	integer GRAB_LIST_MAX_ENTRIES,
 	integer GRAB_LIST_STRIDE,
 	integer GRAB_LIST_TIMEOUT,
 	
-	integer FREE_VICTIMS_LIST_STRIDE,
-
 	integer RECAPTURE_LIST_MAX_ENTRIES,
 	integer RECAPTURE_LIST_STRIDE,
 	integer RECAPTURE_LIST_TIMEOUT,
@@ -61,6 +64,10 @@ integer getVictimIndex(key avatarUuid) {
 integer getFreeVictimIndex(key avatarUuid) {
 	return llListFindList(FreeVictimsList, [avatarUuid]);
 }
+// pragma inline
+integer getDomIndex(key avatarUuid) {
+	return llListFindList(DomList, [avatarUuid]);
+}
 
 // pragma inline
 integer getGrabIndex(key avatarUuid) {
@@ -74,14 +81,16 @@ integer getRecaptureIndex(key avatarUuid) {
 
 // NO pragma inline
 addToVictimsList(key avatarUuid, integer timerTime) {
+	removeFromVictimsList(avatarUuid);
+	removeFromFreeVictimsList(avatarUuid);
+	removeFromDomList(avatarUuid);
+
 	if(timerTime>0) {
 		timerTime+=llGetUnixTime();
 	}
 	else if(timerTime<0) {
 		timerTime=0;
 	}
-	//slmember1: I don't have an idea how someone could get on the list twice, but to be sure that this will not happen ...
-	removeFromVictimsList(avatarUuid);
 	VictimsList+=[avatarUuid, timerTime, 0];
 	llMessageLinked(LINK_SET, RLV_VICTIM_ADDED, (string)avatarUuid, "");
 	//do Relay check and apply restrictions
@@ -122,6 +131,38 @@ changeCurrentVictim(key newVictimKey) {
 }
 
 // pragma inline
+addToDomList(key avatarUuid) {
+	removeFromVictimsList(avatarUuid);
+	removeFromFreeVictimsList(avatarUuid);
+	removeFromDomList(avatarUuid);
+	DomList+=[avatarUuid];
+}
+
+// NO pragma inline
+removeFromDomList(key avatarUuid) {
+	integer index;
+	while(~(index=getDomIndex(avatarUuid))) {
+		DomList=llDeleteSubList(DomList, index, index + DOM_LIST_STRIDE - 1);
+	}
+}
+
+// NO pragma inline
+addToFreeVictimsList(key avatarUuid) {
+	removeFromVictimsList(avatarUuid);
+	removeFromFreeVictimsList(avatarUuid);
+	removeFromDomList(avatarUuid);
+	FreeVictimsList+=avatarUuid;
+}
+
+// NO pragma inline
+removeFromFreeVictimsList(key avatarUuid) {
+	integer index;
+	while(~(index=getFreeVictimIndex(avatarUuid))) {
+		FreeVictimsList=llDeleteSubList(FreeVictimsList, index, index + FREE_VICTIMS_LIST_STRIDE - 1);
+	}
+}
+
+// pragma inline
 addToGrabList(key avatarUuid) {
 	if(!~getGrabIndex(avatarUuid)) {
 		GrabList+=[avatarUuid, llGetUnixTime() + RLV_ASK_TIMEOUT];
@@ -151,21 +192,6 @@ grabListRemoveTimedOutEntrys() {
 			index-=GRAB_LIST_STRIDE;
 			length-=GRAB_LIST_STRIDE;
 		}
-	}
-}
-
-// pragma inline
-addToFreeVictimsList(key avatarUuid) {
-	if(!~getFreeVictimIndex(avatarUuid)) {
-		FreeVictimsList+=avatarUuid;
-	}
-}
-
-// pragma inline
-removeFromFreeVictimsList(key avatarUuid) {
-	integer index;
-	while(~(index=getFreeVictimIndex(avatarUuid))) {
-		FreeVictimsList=llDeleteSubList(FreeVictimsList, index, index + FREE_VICTIMS_LIST_STRIDE - 1);
 	}
 }
 
