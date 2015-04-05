@@ -1,3 +1,53 @@
+$import LSLScripts.lib.macros.lslm (
+	VictimsList=VictimsList,
+	FreeVictimsList=FreeVictimsList,
+	GrabList=GrabList,
+	RecaptureList=RecaptureList,
+	SensorList=SensorList,
+	
+	VictimKey=VictimKey,
+	
+	RlvRestrictionsMenuAvailable=RlvRestrictionsMenuAvailable,
+	
+	TimerRunning=TimerRunning,
+	
+	RlvBaseRestrictions=RlvBaseRestrictions,
+
+	RLV_RELAY_CHANNEL=RLV_RELAY_CHANNEL,
+	RLV_ASK_TIMEOUT=RLV_ASK_TIMEOUT,
+
+	VICTIMS_LIST_STRIDE=VICTIMS_LIST_STRIDE,
+	
+	GRAB_LIST_MAX_ENTRIES=GRAB_LIST_MAX_ENTRIES,
+	GRAB_LIST_STRIDE=GRAB_LIST_STRIDE,
+	GRAB_LIST_TIMEOUT=GRAB_LIST_TIMEOUT,
+
+	FREE_VICTIMS_LIST_STRIDE=FREE_VICTIMS_LIST_STRIDE,
+
+	RECAPTURE_LIST_MAX_ENTRIES=RECAPTURE_LIST_MAX_ENTRIES,
+	RECAPTURE_LIST_STRIDE=RECAPTURE_LIST_STRIDE,
+	RECAPTURE_LIST_TIMEOUT=RECAPTURE_LIST_TIMEOUT,
+
+	DIALOG=DIALOG,
+	RLV_VICTIM_ADDED=RLV_VICTIM_ADDED,
+	RLV_VICTIM_REMOVED=RLV_VICTIM_REMOVED,
+	UPDATE_CURRENT_VICTIM=UPDATE_CURRENT_VICTIM,
+	
+	BACKBTN=BACKBTN,
+	MyUniqueId=MyUniqueId,
+
+	PROMPT_VICTIM=PROMPT_VICTIM,
+	NO_VICTIM=NO_VICTIM,
+	NEW_LINE=NEW_LINE,
+	TIMER_NO_TIME=TIMER_NO_TIME,
+	
+	VICTIMS_LIST_RELAY=VICTIMS_LIST_RELAY,
+	VICTIMS_LIST_TIMER=VICTIMS_LIST_TIMER,
+
+	RLV_COMMAND_RELEASE=RLV_COMMAND_RELEASE,
+	RLV_COMMAND_VERSION=RLV_COMMAND_VERSION
+);
+
 //LICENSE:
 //
 //This script and the nPose scripts are licensed under the GPLv2
@@ -175,163 +225,17 @@ debug(list message) {
 }
 
 
-addToVictimsList(key avatarUuid, integer timerTime) {
-	if(timerTime>0) {
-		timerTime+=llGetUnixTime();
-	}
-	else if(timerTime<0) {
-		timerTime=0;
-	}
-	//slmember1: I don't have an idea how someone could get on the list twice, but to be sure that this will not happen ...
-	removeFromVictimsList(avatarUuid);
-	VictimsList+=[avatarUuid, timerTime, 0];
-	llMessageLinked(LINK_SET, RLV_VICTIM_ADDED, (string)avatarUuid, "");
-	//do Relay check and apply restrictions
-	sendToRlvRelay(avatarUuid, RLV_COMMAND_VERSION + "|" + RlvBaseRestrictions, "");
-	//the timer should be running if there is a victim in the list
-	if(!TimerRunning) {
-		llSetTimerEvent(1.0);
-		TimerRunning=TRUE;
-	}
-}
-
-removeFromVictimsList(key avatarUuid) {
-	integer index;
-	while(~(index=llListFindList(VictimsList, [avatarUuid]))) {
-		VictimsList=llDeleteSubList(VictimsList, index, index + VICTIMS_LIST_STRIDE - 1);
-		llMessageLinked(LINK_SET, RLV_VICTIM_REMOVED, (string)avatarUuid, "");
-	}
-	if(VictimKey==avatarUuid) {
-		changeCurrentVictim(NULL_KEY);
-	}
-	//if there isn't a victim any more, we don't need a timer
-	if(!llGetListLength(VictimsList) && TimerRunning) {
-		llSetTimerEvent(0.0);
-		TimerRunning=FALSE;
-	}
-}
-
-changeCurrentVictim(key newVictimKey) {
-	if(newVictimKey!=VictimKey) {
-		if(newVictimKey==NULL_KEY || ~llListFindList(VictimsList, [newVictimKey])) {
-			//this is a valid key
-			VictimKey=newVictimKey;
-			llMessageLinked( LINK_SET, UPDATE_CURRENT_VICTIM, (string)VictimKey, "" );
-		}
-	}
-}
-
-addToFreeVictimsList(key avatarUuid) {
-	if(!~llListFindList(FreeVictimsList, [avatarUuid])) {
-		FreeVictimsList+=avatarUuid;
-	}
-}
-
-removeFromFreeVictimsList(key avatarUuid) {
-	integer index;
-	while(~(index=llListFindList(FreeVictimsList, [avatarUuid]))) {
-		FreeVictimsList=llDeleteSubList(FreeVictimsList, index, index + FREE_VICTIMS_LIST_STRIDE - 1);
-	}
-}
-
-addToGrabList(key avatarUuid) {
-	if(!~llListFindList(GrabList, [avatarUuid])) {
-		GrabList+=[avatarUuid, llGetUnixTime() + RLV_ASK_TIMEOUT];
-		while (llGetListLength(GrabList) > GRAB_LIST_MAX_ENTRIES * GRAB_LIST_STRIDE) {
-			GrabList=llList2List(GrabList, GRAB_LIST_STRIDE, -1);
-		}
-	}
-}
-
-removeFromGrabList(key avatarUuid) {
-	integer index;
-	while(~(index=llListFindList(GrabList, [avatarUuid]))) {
-		GrabList=llDeleteSubList(GrabList, index, index + GRAB_LIST_STRIDE - 1);
-	}
-}
-
-grabListRemoveTimedOutEntrys() {
-	integer currentTime=llGetUnixTime();
-	integer length=llGetListLength(GrabList);
-	integer index;
-	for(; index<length; index+=GRAB_LIST_STRIDE) {
-		integer timeout=llList2Integer(GrabList, index + GRAB_LIST_TIMEOUT);
-		if(timeout<currentTime) {
-			GrabList=llDeleteSubList(GrabList, index, index + GRAB_LIST_STRIDE - 1);
-			index-=GRAB_LIST_STRIDE;
-			length-=GRAB_LIST_STRIDE;
-		}
-	}
-}
-
-addToRecaptureList(key avatarUuid, integer timerTime) {
-	if(timerTime<0) {
-		timerTime=0;
-	}
-	recaptureListRemoveTimedOutEntrys();
-	//slmember1: I don't have an idea how someone could get on the list twice, but to be sure that this will not happen ...
-	removeFromRecaptureList(avatarUuid);
-	RecaptureList+=[avatarUuid, timerTime, 0];
-	while (llGetListLength(RecaptureList) > RECAPTURE_LIST_MAX_ENTRIES * RECAPTURE_LIST_STRIDE) {
-		RecaptureList=llList2List(RecaptureList, RECAPTURE_LIST_STRIDE, -1);
-	}
-}
-
-removeFromRecaptureList(key avatarUuid) {
-	integer index;
-	while(~(index=llListFindList(RecaptureList, [avatarUuid]))) {
-		RecaptureList=llDeleteSubList(RecaptureList, index, index + RECAPTURE_LIST_STRIDE - 1);
-	}
-}
-recaptureListRemoveTimedOutEntrys() {
-	integer currentTime=llGetUnixTime();
-	integer length=llGetListLength(RecaptureList);
-	integer index;
-	for(; index<length; index+=RECAPTURE_LIST_STRIDE) {
-		integer timeout=llList2Integer(RecaptureList, index + RECAPTURE_LIST_TIMEOUT);
-		if(timeout && timeout<currentTime) {
-			RecaptureList=llDeleteSubList(RecaptureList, index, index + RECAPTURE_LIST_STRIDE - 1);
-			index-=RECAPTURE_LIST_STRIDE;
-			length-=RECAPTURE_LIST_STRIDE;
-		}
-	}
-}
-
-string stringReplace( string str, string search, string replace ) {
-	return llDumpList2String(
-	llParseStringKeepNulls( str, [ search ], [] ), replace );
-}
-
-showMenu( key targetKey, string prompt, list buttons, string menuPath) {
-	if(targetKey) {
-		llMessageLinked( LINK_SET, DIALOG,
-			(string)targetKey
-			+ "|" +
-			prompt + "\n" + menuPath + "\n"
-			+ "|" +
-			(string)0
-			+ "|" +
-			llDumpList2String( buttons, "`" )
-			+ "|" +
-			llDumpList2String( [ BACKBTN ], "`" )
-			+ "|" +
-			menuPath
-			, MyUniqueId
-		);
-	}
-}
-
 showMainMenu(key targetKey) {
 	list buttons;
-	integer toucherIsVictim=~llListFindList(VictimsList, [targetKey]);
 	integer numberOfVictims=llGetListLength(VictimsList)/VICTIMS_LIST_STRIDE;
-
-	if(!toucherIsVictim) {
+	if(!~getVictimIndex(targetKey)) {
 		buttons+=[MENU_RLV_CAPTURE];
 		if(isRestrictionsMenuAllowed(targetKey)) {
 			buttons+=[MENU_RLV_RESTRICTIONS];
 		}
-		buttons+=[BUTTON_RLV_RELEASE, BUTTON_RLV_UNSIT];
+		if(VictimKey) {
+			buttons+=[BUTTON_RLV_RELEASE, BUTTON_RLV_UNSIT];
+		}
 	}
 	if(isTimerMenuAllowed(targetKey)) {
 		buttons+=[MENU_RLV_TIMER];
@@ -339,11 +243,18 @@ showMainMenu(key targetKey) {
 	if(numberOfVictims) {
 		buttons+=[MENU_RLV_VICTIMS];
 	}
+	
+	string promt=getSelectedVictimPromt();
+	if(VictimKey) {
+		promt
+			+=PROMPT_RELAY + conditionalString(getVictimRelayVersion(VictimKey), PROMPT_RELAY_YES, PROMPT_RELAY_NO) + NEW_LINE
+			+ getVictimTimerString(VictimKey)
+		;
+	}
+	
 	showMenu(
 		targetKey,
-		getSelectedVictimPromt()
-		+ PROMPT_RELAY + conditionalString(getVictimRelayVersion(VictimKey), PROMPT_RELAY_YES, PROMPT_RELAY_NO) + NEW_LINE
-		+ getVictimTimerString(VictimKey),
+		promt,
 		buttons,
 		MENU_RLV_MAIN
 	);
@@ -352,10 +263,10 @@ showMainMenu(key targetKey) {
 showTimerMenu(key targetKey) {
 	if(isTimerMenuAllowed(targetKey)) {
 		list buttons=TIMER_BUTTONS1;
-		if(!~llListFindList(VictimsList, [targetKey])) {
+		if(!~getVictimIndex(targetKey)) {
 			buttons+=TIMER_BUTTONS2;
 		}
-		showMenu(targetKey, getVictimTimerString(VictimKey), buttons, MENU_RLV_MAIN + PATH_SEPARATOR + MENU_RLV_TIMER);
+		showMenu(targetKey, getSelectedVictimPromt() + getVictimTimerString(VictimKey), buttons, MENU_RLV_MAIN + PATH_SEPARATOR + MENU_RLV_TIMER);
 	}
 }
 
@@ -371,140 +282,6 @@ showVictimsMenu(key targetKey) {
 }
 
 
-integer isTimerMenuAllowed(key targetKey) {
-	//allowed if:
-	//- a victim is selected
-	//- and the target of the menu is not a victim, or the timer of the selected victim is already running
-	return VictimKey!=NULL_KEY && (!~llListFindList(VictimsList, [targetKey]) || getVictimTimer(VictimKey));
-}
-
-integer isRestrictionsMenuAllowed(key targetKey) {
-	//allowed if:
-	//- a victim is selected
-	//- and the toucher isn't a victim
-	//- and the victims RLV is already detected
-	//- and the RLV+ RestrictionsMenu Script is available
-	return VictimKey!=NULL_KEY && !~llListFindList(VictimsList, [targetKey]) && getVictimRelayVersion(VictimKey) && RlvRestrictionsMenuAvailable;
-}
-
-
-// send rlv commands to the RLV relay, usable for common format (not ping)
-sendToRlvRelay(key victim, string rlvCommand, string identifier) {
-	if(rlvCommand) {
-		if(victim) {
-			llSay(RLV_RELAY_CHANNEL,
-				conditionalString(llStringLength(identifier), identifier, (string)MyUniqueId) + ","
-				+ (string)victim + ","
-				+ stringReplace(rlvCommand, "%MYKEY%", (string)llGetKey())
-			);
-		}
-	}
-}
-
-
-removeVictimTimer(key avatarUuid) {
-	integer index=llListFindList(VictimsList, [avatarUuid]);
-	if(~index) {
-		VictimsList=llListReplaceList(VictimsList, [0], index + VICTIMS_LIST_TIMER, index + VICTIMS_LIST_TIMER);
-	}
-}
-
-addTimeToVictim(key avatarUuid, integer time) {
-	integer index=llListFindList(VictimsList, [avatarUuid]);
-	if(~index) {
-		integer thisTime=llGetUnixTime();
-		integer oldTime=llList2Integer(VictimsList, index + VICTIMS_LIST_TIMER);
-		if(oldTime<thisTime) {
-			oldTime=thisTime;
-		}
-		integer newTime=oldTime + time;
-		// if used via menu, almost nobody like the timer to be triggered by substracting time.
-		// To stop the timer they can use the Reset button
-		if(newTime < thisTime + 30) {
-			newTime=thisTime + 30;
-		}
-		VictimsList=llListReplaceList(VictimsList, [newTime], index + VICTIMS_LIST_TIMER, index + VICTIMS_LIST_TIMER);
-		if(!TimerRunning) {
-			llSetTimerEvent(1.0);
-			TimerRunning=TRUE;
-		}
-	}
-}
-
-integer getVictimTimer(key avatarUuid) {
-	integer index=llListFindList(VictimsList, [avatarUuid]);
-	if(~index) {
-		integer time=llList2Integer(VictimsList, index + VICTIMS_LIST_TIMER) - llGetUnixTime();
-		if(time>0) {
-			return time;
-		}
-	}
-	return 0;
-}
-
-string getVictimTimerString(key avatarUuid) {
-	string returnValue="Timer: ";
-	integer runningTimeS=getVictimTimer(avatarUuid);
-	if(!runningTimeS) {
-		return returnValue + TIMER_NO_TIME + NEW_LINE;
-	}
-	integer runningTimeM=runningTimeS / 60;
-	runningTimeS=runningTimeS % 60;
-	integer runningTimeH=runningTimeM / 60;
-	runningTimeM=runningTimeM % 60;
-	integer runningTimeD=runningTimeH / 24;
-	runningTimeH=runningTimeH % 24;
-	
-	return 
-		returnValue
-		+ conditionalString(runningTimeD, (string)runningTimeD + "d ", "")
-		+ llGetSubString("0"+(string)runningTimeH, -2, -1)
-		+ ":"
-		+ llGetSubString("0"+(string)runningTimeM, -2, -1)
-		+ ":"
-		+ llGetSubString("0"+(string)runningTimeS, -2, -1)
-	;
-}
-
-string conditionalString(integer conditon, string valueIfTrue, string valueIfFalse) {
-	if(conditon) {
-		return valueIfTrue;
-	}
-	return valueIfFalse;
-}
-
-
-string getSelectedVictimPromt() {
-	return PROMPT_VICTIM + conditionalString(VictimKey!=NULL_KEY, llKey2Name(VictimKey), NO_VICTIM) + NEW_LINE;
-}
-
-integer getVictimRelayVersion(key targetKey) {
-	integer index=llListFindList(VictimsList, [targetKey]);
-	if(~index) {
-		return llList2Integer(VictimsList, index + VICTIMS_LIST_RELAY);
-	}
-	return 0;
-}
-setVictimRelayVersion(key targetKey, integer relayVersion) {
-	integer index=llListFindList(VictimsList, [targetKey]);
-	if(~index) {
-		VictimsList=llListReplaceList(VictimsList, [relayVersion], index + VICTIMS_LIST_RELAY, index + VICTIMS_LIST_RELAY);
-	}
-}
-
-releaseAvatar(key targetKey) {
-	sendToRlvRelay(targetKey, RLV_COMMAND_RELEASE, "");
-	addToFreeVictimsList(targetKey);
-	removeFromVictimsList(targetKey);
-}
-
-unsitAvatar(key targetKey) {
-	sendToRlvRelay(targetKey, "@unsit=y", "");
-	llSleep(0.75);
-	sendToRlvRelay(targetKey, "@unsit=force", "");
-	llSleep(0.75);
-	releaseAvatar(targetKey);
-}
 
 // --- states
 
@@ -538,7 +315,7 @@ default {
 				NPosetoucherID=(key)llList2String(params, 2);
 				list pathparts = llParseString2List( Path, [PATH_SEPARATOR], [] );
 				
-				integer toucherIsVictim=~llListFindList(VictimsList, [NPosetoucherID]);
+				integer toucherIsVictim=~getVictimIndex(NPosetoucherID);
 	
 				//llOwnerSay( "Path: '" + Path + "' Selection: " + selection );
 	
@@ -564,7 +341,7 @@ default {
 				if( Path == MENU_RLV_MAIN ) {
 					if( selection == MENU_RLV_CAPTURE ) {
 						//switch to the Capture Menu
-						if(!~llListFindList(VictimsList, [NPosetoucherID])) {
+						if(!toucherIsVictim) {
 							llSensor("", NULL_KEY, AGENT, RLV_captureRange, PI);
 						}
 						else {
@@ -577,13 +354,13 @@ default {
 					}
 					else if( selection == BUTTON_RLV_RELEASE) {
 						//release victim and reshow Main Menu
-						if(!~llListFindList(VictimsList, [NPosetoucherID])) {
+						if(!toucherIsVictim) {
 							releaseAvatar(VictimKey);
 						}
 						showMainMenu( NPosetoucherID );
 					}
 					else if( selection == BUTTON_RLV_UNSIT ) {
-						if(!~llListFindList(VictimsList, [NPosetoucherID])) {
+						if(!toucherIsVictim) {
 							unsitAvatar(VictimKey);
 						}
 						showMainMenu(NPosetoucherID);
@@ -601,7 +378,7 @@ default {
 				}
 
 				else if( Path == MENU_RLV_MAIN + PATH_SEPARATOR + MENU_RLV_CAPTURE ) {
-					if(!~llListFindList(VictimsList, [NPosetoucherID])) {
+					if(!toucherIsVictim) {
 						integer n=llListFindList(SensorList, [selection]);
 						if(~n) {
 							key avatarWorkingOn=llList2Key(SensorList, n + SENSOR_LIST_AVATAR_UUID);
@@ -609,7 +386,7 @@ default {
 							while(llGetAgentSize(llGetLinkKey(counter))) {
 								if(avatarWorkingOn==llGetLinkKey(counter)) {
 									//the avatar we want to capture is already sitting
-									if(~llListFindList(VictimsList, [avatarWorkingOn])) {
+									if(~getVictimIndex(avatarWorkingOn)) {
 										//The Avatar is in the victims list, this means he is sitting on an RLV enabled seat. Reapply RLV Base Restrictions.
 										sendToRlvRelay(avatarWorkingOn, RlvBaseRestrictions, "");
 										changeCurrentVictim(avatarWorkingOn);
@@ -617,7 +394,7 @@ default {
 										showMainMenu(NPosetoucherID);
 										return;
 									}
-									else if(~llListFindList(FreeVictimsList, [avatarWorkingOn])) {
+									else if(~getFreeVictimIndex(avatarWorkingOn)) {
 										//this is a previously released victim, regrab him
 										removeFromFreeVictimsList(avatarWorkingOn);
 										addToVictimsList(avatarWorkingOn, RLV_grabTimer);
@@ -712,7 +489,7 @@ default {
 				}
 				else if(menuName=="capture") {
 					//TODO: slmember1: I think thats realy ugly
-					if(!~llListFindList(VictimsList, [target])) {
+					if(!~getVictimIndex(target)) {
 						NPosetoucherID=target;
 						llSensor("", NULL_KEY, AGENT, RLV_captureRange, PI);
 					}
@@ -774,19 +551,19 @@ default {
 				if(avatarWorkingOn) {
 					if(isRlvEnabledSeat) {
 						//This is a RLV enabled seat
-						if(!~llListFindList(VictimsList, [avatarWorkingOn])) {
+						if(!~getVictimIndex(avatarWorkingOn)) {
 							//This avatar is currently no Vicitim
-							if(~llListFindList(GrabList, [avatarWorkingOn])) {
+							if(~getGrabIndex(avatarWorkingOn)) {
 								//Avatar is grabbed by someone
 								addToVictimsList(avatarWorkingOn, RLV_grabTimer);
 								changeCurrentVictim(avatarWorkingOn);
 							}
-							else if(~llListFindList(RecaptureList, [avatarWorkingOn])) {
+							else if(~getRecaptureIndex(avatarWorkingOn)) {
 								//Avatar is recaptured, due previously safeword or Logoff/Logon
-								addToVictimsList(avatarWorkingOn, llList2Integer(RecaptureList, llListFindList(RecaptureList, [avatarWorkingOn]) + RECAPTURE_LIST_TIMER));
+								addToVictimsList(avatarWorkingOn, llList2Integer(RecaptureList, getRecaptureIndex(avatarWorkingOn) + RECAPTURE_LIST_TIMER));
 								changeCurrentVictim(avatarWorkingOn);
 							}
-							else if(~llListFindList(FreeVictimsList, [avatarWorkingOn])) {
+							else if(~getFreeVictimIndex(avatarWorkingOn)) {
 								//the avatar ist free, do nothing
 							}
 							else {
@@ -798,7 +575,7 @@ default {
 					}
 					else {
 						//This is NOT a RLV enabled seat
-						if(~llListFindList(VictimsList, [avatarWorkingOn]) || ~llListFindList(RecaptureList, [avatarWorkingOn])) {
+						if(~getVictimIndex(avatarWorkingOn) || ~getRecaptureIndex(avatarWorkingOn)) {
 							sendToRlvRelay(avatarWorkingOn, RLV_COMMAND_RELEASE, "");
 						}
 						removeFromVictimsList(avatarWorkingOn);
@@ -815,12 +592,8 @@ default {
 					}
 				}
 				//Garbage Collection
-				if(~llListFindList(GrabList, [avatarWorkingOn])) {
-					removeFromGrabList(avatarWorkingOn);
-				}
-				if(~llListFindList(RecaptureList, [avatarWorkingOn])) {
-					removeFromRecaptureList(avatarWorkingOn);
-				}
+				removeFromGrabList(avatarWorkingOn);
+				removeFromRecaptureList(avatarWorkingOn);
 			}
 			//Garbage Collection
 			length=llGetListLength(FreeVictimsList);
@@ -916,7 +689,7 @@ default {
 				else if(command==RLV_COMMAND_RELEASE) {
 					if(reply=="ok") {
 						//the relay cancels the active session (perhaps by safewording), set the victim free
-						if(~llListFindList(VictimsList, [senderAvatarId])) {
+						if(~getVictimIndex(senderAvatarId)) {
 							addToFreeVictimsList(senderAvatarId);
 						}
 						removeFromVictimsList(senderAvatarId);
@@ -933,7 +706,7 @@ default {
 						// 1.) the avatar could be routed to a dom seat due to the fact that the dom seat is the next free seat (that should not happen if we define the sub seats at the begining of the slot list)
 						// 2.) perhaps the avatar could cheat and not get seated, in this case we need a timeout in the recapture list, so we could remove after the timeout triggers. That is necessary because if he sits down somtime later, he could be in the recapture list and so the recapture timer would be aplied (and not the grab/trap timer)
 						recaptureListRemoveTimedOutEntrys(); //this maybe shorten the list
-						integer index=llListFindList(RecaptureList, [senderAvatarId]);
+						integer index=getRecaptureIndex(senderAvatarId);
 						if(~index) {
 							//we know him and we want him
 							if(FreeRlvEnabledSeats) {
