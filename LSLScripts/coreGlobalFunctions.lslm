@@ -1,22 +1,21 @@
 $module (
+	key MyUniqueId,
+
 	list VictimsList,
 	list FreeVictimsList,
 	list DomList,
 	list GrabList,
 	list RecaptureList,
-	list SensorList,
 	
 	key VictimKey,
-	
-	integer RlvRestrictionsMenuAvailable,
 	
 	integer TimerRunning,
 	
 	string RlvBaseRestrictions,
-	
-	integer RLV_RELAY_CHANNEL,
-	integer RLV_ASK_TIMEOUT,
+	integer RLV_grabTimer,	
 
+	integer VICTIMS_LIST_RELAY,
+	integer VICTIMS_LIST_TIMER,
 	integer VICTIMS_LIST_STRIDE,
 	
 	integer FREE_VICTIMS_LIST_STRIDE,
@@ -29,27 +28,14 @@ $module (
 	
 	integer RECAPTURE_LIST_MAX_ENTRIES,
 	integer RECAPTURE_LIST_STRIDE,
-	integer RECAPTURE_LIST_TIMEOUT,
-	
-	integer DIALOG,
-	integer RLV_VICTIM_ADDED,
-	integer RLV_VICTIM_REMOVED,
-	integer UPDATE_CURRENT_VICTIM,
-	
-	string BACKBTN,
-	key MyUniqueId,
-	
-	string PROMPT_VICTIM,
-	string NO_VICTIM,
-	string NEW_LINE,
-	string TIMER_NO_TIME,
-	
-	integer VICTIMS_LIST_RELAY,
-	integer VICTIMS_LIST_TIMER,
-	
-	string RLV_COMMAND_RELEASE,
-	string RLV_COMMAND_VERSION
+	integer RECAPTURE_LIST_TIMEOUT
 )
+
+$import LSLScripts.constants.lslm ();
+
+debug(list message) {
+	llOwnerSay(llGetScriptName() + "\n##########\n#>" + llDumpList2String(message, "\n#>") + "\n##########");
+}
 
 // pragma inline
 string stringReplace( string str, string search, string replace ) {
@@ -92,9 +78,10 @@ addToVictimsList(key avatarUuid, integer timerTime) {
 		timerTime=0;
 	}
 	VictimsList+=[avatarUuid, timerTime, 0];
+	llMessageLinked(LINK_SET, UPDATE_VICTIMS_LIST, llList2CSV(VictimsList), "");
 	llMessageLinked(LINK_SET, RLV_VICTIM_ADDED, (string)avatarUuid, "");
 	//do Relay check and apply restrictions
-	sendToRlvRelay(avatarUuid, RLV_COMMAND_VERSION + "|" + RlvBaseRestrictions, "");
+	sendToRlvRelay(avatarUuid, RLV_RELAY_API_COMMAND_VERSION + "|" + RlvBaseRestrictions, "");
 	//the timer should be running if there is a victim in the list
 	if(!TimerRunning) {
 		llSetTimerEvent(1.0);
@@ -104,18 +91,23 @@ addToVictimsList(key avatarUuid, integer timerTime) {
 
 // NO pragma inline
 removeFromVictimsList(key avatarUuid) {
+	integer isChanged;
 	integer index;
 	while(~(index=getVictimIndex(avatarUuid))) {
 		VictimsList=llDeleteSubList(VictimsList, index, index + VICTIMS_LIST_STRIDE - 1);
 		llMessageLinked(LINK_SET, RLV_VICTIM_REMOVED, (string)avatarUuid, "");
+		isChanged=TRUE;
 	}
-	if(VictimKey==avatarUuid) {
-		changeCurrentVictim(NULL_KEY);
-	}
-	//if there isn't a victim any more, we don't need a timer
-	if(!llGetListLength(VictimsList) && TimerRunning) {
-		llSetTimerEvent(0.0);
-		TimerRunning=FALSE;
+	if(isChanged) {
+		llMessageLinked(LINK_SET, UPDATE_VICTIMS_LIST, llList2CSV(VictimsList), "");
+		if(VictimKey==avatarUuid) {
+			changeCurrentVictim(NULL_KEY);
+		}
+		//if there isn't a victim any more, we don't need a timer
+		if(!llGetListLength(VictimsList) && TimerRunning) {
+			llSetTimerEvent(0.0);
+			TimerRunning=FALSE;
+		}
 	}
 }
 
@@ -125,7 +117,7 @@ changeCurrentVictim(key newVictimKey) {
 		if(newVictimKey==NULL_KEY || ~getVictimIndex(newVictimKey)) {
 			//this is a valid key
 			VictimKey=newVictimKey;
-			llMessageLinked( LINK_SET, UPDATE_CURRENT_VICTIM, (string)VictimKey, "" );
+			llMessageLinked( LINK_SET, CHANGE_SELECTED_VICTIM, (string)VictimKey, "" );
 		}
 	}
 }
@@ -165,7 +157,7 @@ removeFromFreeVictimsList(key avatarUuid) {
 // pragma inline
 addToGrabList(key avatarUuid) {
 	if(!~getGrabIndex(avatarUuid)) {
-		GrabList+=[avatarUuid, llGetUnixTime() + RLV_ASK_TIMEOUT];
+		GrabList+=[avatarUuid, llGetUnixTime() + RLV_RELAY_ASK_TIMEOUT];
 		while (llGetListLength(GrabList) > GRAB_LIST_MAX_ENTRIES * GRAB_LIST_STRIDE) {
 			GrabList=llList2List(GrabList, GRAB_LIST_STRIDE, -1);
 		}
@@ -232,48 +224,10 @@ recaptureListRemoveTimedOutEntrys() {
 	}
 }
 
-// NO pragma inline
-showMenu( key targetKey, string prompt, list buttons, string menuPath) {
-	if(targetKey) {
-		llMessageLinked( LINK_SET, DIALOG,
-			(string)targetKey
-			+ "|" +
-			prompt + "\n" + menuPath + "\n"
-			+ "|" +
-			(string)0
-			+ "|" +
-			llDumpList2String( buttons, "`" )
-			+ "|" +
-			llDumpList2String( [ BACKBTN ], "`" )
-			+ "|" +
-			menuPath
-			, MyUniqueId
-		);
-	}
-}
-
-// pragma inline
-integer isTimerMenuAllowed(key targetKey) {
-	//allowed if:
-	//- a victim is selected
-	//- and the target of the menu is not a victim, or the timer of the selected victim is already running
-	return VictimKey!=NULL_KEY && (!~getVictimIndex(targetKey) || getVictimTimer(VictimKey));
-}
-
-// pragma inline
-integer isRestrictionsMenuAllowed(key targetKey) {
-	//allowed if:
-	//- a victim is selected
-	//- and the toucher isn't a victim
-	//- and the victims RLV is already detected
-	//- and the RLV+ RestrictionsMenu Script is available
-	return VictimKey!=NULL_KEY && !~getVictimIndex(targetKey) && getVictimRelayVersion(VictimKey) && RlvRestrictionsMenuAvailable;
-}
-
-
 // send rlv commands to the RLV relay, usable for common format (not ping)
 // NO pragma inline
 sendToRlvRelay(key victim, string rlvCommand, string identifier) {
+debug(["sendToRlvRelay", victim, rlvCommand, identifier]);
 	if(rlvCommand) {
 		if(victim) {
 			llSay(RLV_RELAY_CHANNEL,
@@ -286,34 +240,11 @@ sendToRlvRelay(key victim, string rlvCommand, string identifier) {
 }
 
 
-// pragma inline
-removeVictimTimer(key avatarUuid) {
+setVictimTimer(key avatarUuid, integer time) {
 	integer index=getVictimIndex(avatarUuid);
 	if(~index) {
-		VictimsList=llListReplaceList(VictimsList, [0], index + VICTIMS_LIST_TIMER, index + VICTIMS_LIST_TIMER);
-	}
-}
-
-// pragma inline
-addTimeToVictim(key avatarUuid, integer time) {
-	integer index=getVictimIndex(avatarUuid);
-	if(~index) {
-		integer thisTime=llGetUnixTime();
-		integer oldTime=llList2Integer(VictimsList, index + VICTIMS_LIST_TIMER);
-		if(oldTime<thisTime) {
-			oldTime=thisTime;
-		}
-		integer newTime=oldTime + time;
-		// if used via menu, almost nobody like the timer to be triggered by substracting time.
-		// To stop the timer they can use the Reset button
-		if(newTime < thisTime + 30) {
-			newTime=thisTime + 30;
-		}
-		VictimsList=llListReplaceList(VictimsList, [newTime], index + VICTIMS_LIST_TIMER, index + VICTIMS_LIST_TIMER);
-		if(!TimerRunning) {
-			llSetTimerEvent(1.0);
-			TimerRunning=TRUE;
-		}
+		VictimsList=llListReplaceList(VictimsList, [time], index + VICTIMS_LIST_TIMER, index + VICTIMS_LIST_TIMER);
+		llMessageLinked(LINK_SET, UPDATE_VICTIMS_LIST, llList2CSV(VictimsList), "");
 	}
 }
 
@@ -329,31 +260,6 @@ integer getVictimTimer(key avatarUuid) {
 	return 0;
 }
 
-// NO pragma inline
-string getVictimTimerString(key avatarUuid) {
-	string returnValue="Timer: ";
-	integer runningTimeS=getVictimTimer(avatarUuid);
-	if(!runningTimeS) {
-		return returnValue + TIMER_NO_TIME + NEW_LINE;
-	}
-	integer runningTimeM=runningTimeS / 60;
-	runningTimeS=runningTimeS % 60;
-	integer runningTimeH=runningTimeM / 60;
-	runningTimeM=runningTimeM % 60;
-	integer runningTimeD=runningTimeH / 24;
-	runningTimeH=runningTimeH % 24;
-	
-	return 
-		returnValue
-		+ conditionalString(runningTimeD, (string)runningTimeD + "d ", "")
-		+ llGetSubString("0"+(string)runningTimeH, -2, -1)
-		+ ":"
-		+ llGetSubString("0"+(string)runningTimeM, -2, -1)
-		+ ":"
-		+ llGetSubString("0"+(string)runningTimeS, -2, -1)
-	;
-}
-
 // pragma inline
 string conditionalString(integer conditon, string valueIfTrue, string valueIfFalse) {
 	string ret=valueIfFalse;
@@ -361,12 +267,6 @@ string conditionalString(integer conditon, string valueIfTrue, string valueIfFal
 		ret=valueIfTrue;
 	}
 	return ret;
-}
-
-
-// pragma inline
-string getSelectedVictimPromt() {
-	return PROMPT_VICTIM + conditionalString(VictimKey!=NULL_KEY, llKey2Name(VictimKey), NO_VICTIM) + NEW_LINE;
 }
 
 // pragma inline
@@ -384,21 +284,47 @@ setVictimRelayVersion(key avatarUuid, integer relayVersion) {
 	integer index=getVictimIndex(avatarUuid);
 	if(~index) {
 		VictimsList=llListReplaceList(VictimsList, [relayVersion], index + VICTIMS_LIST_RELAY, index + VICTIMS_LIST_RELAY);
+		llMessageLinked(LINK_SET, UPDATE_VICTIMS_LIST, llList2CSV(VictimsList), "");
 	}
 }
 
 // pragma inline
 releaseAvatar(key targetKey) {
-	sendToRlvRelay(targetKey, RLV_COMMAND_RELEASE, "");
 	addToFreeVictimsList(targetKey);
 	removeFromVictimsList(targetKey);
+	sendToRlvRelay(targetKey, RLV_RELAY_API_COMMAND_RELEASE, "");
 }
 
 // pragma inline
 unsitAvatar(key targetKey) {
+	removeFromVictimsList(targetKey);
+	addToFreeVictimsList(targetKey);
 	sendToRlvRelay(targetKey, "@unsit=y", "");
 	llSleep(0.75);
 	sendToRlvRelay(targetKey, "@unsit=force", "");
 	llSleep(0.75);
-	releaseAvatar(targetKey);
+	sendToRlvRelay(targetKey, RLV_RELAY_API_COMMAND_RELEASE, "");
+}
+
+grabAvatar(key targetKey) {
+	if(~getVictimIndex(targetKey)) {
+		//the Avatar is in the victims list, this means he is sitting on an RLV enabled seat. Reapply RLV Base Restrictions
+		sendToRlvRelay(targetKey, RlvBaseRestrictions, "");
+		changeCurrentVictim(targetKey);
+		//send the user back to main Menu
+	}
+	else if(~getFreeVictimIndex(targetKey)) {
+		//this is a previously released victim, regrab him
+		addToVictimsList(targetKey, RLV_grabTimer);
+		changeCurrentVictim(targetKey);
+	}
+	else if(~getDomIndex(targetKey)) {
+		//he is NOT a victim .. that implies that he sits on a NON RLV enabled seat. Do nothing
+	}
+	else {
+		//the Avatar is not sitting. Make him sit.
+		//he will become a real victim when sitting on a RLV enabled seat
+		addToGrabList(targetKey);
+		sendToRlvRelay(targetKey, "@sit:" + (string)llGetKey() + "=force", "");
+	}
 }

@@ -1,0 +1,34 @@
+$module ()
+
+//LinkMessages
+integer DOMENU                 = -800; // dialog control back to npose
+integer DIALOG                 = -900; // start dialog
+integer DIALOG_RESPONSE        = -901; // eval dialog response
+
+integer CHANGE_SELECTED_VICTIM = -237;
+integer UPDATE_VICTIMS_LIST    = -238; // this is used by nPose menu to maintain the VictimsList
+integer RLV_MENU_COMMAND       = -8000; //send commands to the RLV CORE
+integer RLV_CORE_COMMAND       = -8010; //send commands to the RLV RESTRICTIONS MENU
+integer RLV_VICTIM_ADDED       = -8011; //if a someone is added to the victims list this message would be send
+integer RLV_VICTIM_REMOVED     = -8012; //if a someone is removed from the victims list this message would be send
+
+integer RLV_MENU_DUMP_DEBUG_STRING = -8008; //TODO: remove this
+integer RLV_CORE_DUMP_DEBUG_STRING = -8018; //TODO: remove this
+
+integer OPTIONS              = -240;
+integer MEM_USAGE            = 34334;
+integer SEAT_UPDATE          = 35353;
+
+//listener channels
+integer RLV_RELAY_CHANNEL    = -1812221819;
+
+//RLV Relay timeouts
+integer RLV_RELAY_ASK_TIMEOUT = 60; //the time the user gets to react on a Relay permission request
+integer RLV_RELAY_TIMEOUT     =  4; //the time to wait for an Relay response
+
+//RLV Relay commands
+string RLV_RELAY_API_COMMAND_RELEASE="!release";
+string RLV_RELAY_API_COMMAND_VERSION="!version";
+string RLV_RELAY_API_COMMAND_PING="ping";
+string RLV_RELAY_API_COMMAND_PONG="!pong";
+
