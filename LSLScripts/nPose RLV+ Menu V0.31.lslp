@@ -41,8 +41,6 @@ string STRING_PROMPT_RELAY_NOTDETECTED="NOT RECOGNIZED";
 string STRING_PROMPT_TIMER_CAPTION="Timer: ";
 string STRING_PROMPT_TIMER_ZERO="--:--:--";
 
-string STRING_NEW_LINE="\n";
-
 string MENU_BUTTON_BACK ="^";
 string MENU_MAIN           ="RLVMain";
 string MENU_CAPTURE        ="→Capture";
@@ -126,38 +124,46 @@ string NPosePath;
 
 float RLV_grabRange=10.0;
 
+
+// NO pragma inline
 debug(list message) {
 	llOwnerSay(llGetScriptName() + "\n##########\n#>" + llDumpList2String(message, "\n#>") + "\n##########");
 }
 
+// pragma inline
 string stringReplace( string str, string search, string replace ) {
 	return llDumpList2String(llParseStringKeepNulls( str, [ search ], [] ), replace );
 }
 
+// pragma inline
 integer getVictimIndex(key avatarUuid) {
 	return llListFindList(VictimsList, [(string)avatarUuid]);
 }
 
+// NO pragma inline
 integer getVictimRelayVersion(key avatarUuid) {
 	integer relayVersion;
 	integer index=getVictimIndex(avatarUuid);
 	if(~index) {
 		relayVersion=llList2Integer(VictimsList, index + VICTIMS_LIST_RELAY);
 	}
-debug(["getVictimRelayVersion", avatarUuid, index, relayVersion] + VictimsList);
 	return relayVersion;
 }
+
+// NO pragma inline
 integer getVictimTimer(key avatarUuid) {
+	integer time;
 	integer index=getVictimIndex(avatarUuid);
 	if(~index) {
-		integer time=llList2Integer(VictimsList, index + VICTIMS_LIST_TIMER) - llGetUnixTime();
-		if(time>0) {
-			return time;
+		time=llList2Integer(VictimsList, index + VICTIMS_LIST_TIMER) - llGetUnixTime();
+		if(time<0) {
+			time=0;
 		}
 	}
-	return 0;
+	return time;
 }
 
+// pragma inline
 addTimeToVictim(key avatarUuid, integer time) {
 	integer index=getVictimIndex(avatarUuid);
 	if(~index) {
@@ -176,6 +182,7 @@ addTimeToVictim(key avatarUuid, integer time) {
 	}
 }
 
+// NO pragma inline
 setVictimTimer(key avatarUuid, integer time) {
 	integer index=getVictimIndex(avatarUuid);
 	if(~index) {
@@ -183,7 +190,6 @@ setVictimTimer(key avatarUuid, integer time) {
 		llMessageLinked(LINK_SET, RLV_CORE_COMMAND, "setTimer," + (string)avatarUuid + "," + (string)time, NULL_KEY);
 	}
 }
-
 
 // NO pragma inline
 string getVictimTimerString(key avatarUuid) {
@@ -210,6 +216,16 @@ string getVictimTimerString(key avatarUuid) {
 	;
 }
 
+// NO pragma inline
+string conditionalString(integer conditon, string valueIfTrue, string valueIfFalse) {
+	string ret=valueIfFalse;
+	if(conditon) {
+		ret=valueIfTrue;
+	}
+	return ret;
+}
+
+// NO pragma inline
 removeFromUsersList(integer index) {
 	if(~index) {
 		llListenRemove(llList2Integer(UsersList, index + USERS_LIST_HANDLE));
@@ -219,6 +235,8 @@ removeFromUsersList(integer index) {
 		llSetTimerEvent(0.0);
 	}
 }
+
+// NO pragma inline
 integer addToUsersList(key menuTarget, string menuName) {
 	integer index=llListFindList(UsersList, [menuTarget, menuName]) - USERS_LIST_MENU_TARGET;
 	removeFromUsersList(index);
@@ -228,6 +246,7 @@ integer addToUsersList(key menuTarget, string menuName) {
 	return channel;
 }
 
+// NO pragma inline
 init() {
 	MyUniqueId=llGenerateKey();
 	llListenRemove(rlvResponseHandle);
@@ -235,6 +254,7 @@ init() {
 	rlvResponseHandle=llListen(rlvResponseChannel, "", NULL_KEY, "");
 }
 
+// NO pragma inline
 showMenu(key menuTarget, string menuName) {
 debug(["showMenu", menuTarget, menuName]);
 	if(menuName==MENU_CAPTURE) {
@@ -270,6 +290,7 @@ debug(["showMenu", menuTarget, menuName]);
 	}
 }
 
+// NO pragma inline
 displayMenu(key menuTarget, string menuName, string additionalPrompt, list additionalButtons) {
 debug(["displayMenu", menuTarget, menuName, additionalPrompt + "---"] + additionalButtons);
 	list buttons;
@@ -360,6 +381,7 @@ debug(["displayMenu", menuTarget, menuName, additionalPrompt + "---"] + addition
 	}
 }
 
+// NO pragma inline
 renderMenu(key targetKey, string prompt, list buttons, string menuPath) {
 	if(targetKey) {
 		llMessageLinked( LINK_SET, DIALOG,
@@ -379,6 +401,7 @@ renderMenu(key targetKey, string prompt, list buttons, string menuPath) {
 	}
 }
 
+// pragma inline
 string getSelectedVictimPromt() {
 	if(VictimKey) {
 		return STRING_PROMPT_VICTIM_CAPTION + llKey2Name(VictimKey) + STRING_NEW_LINE;
@@ -388,11 +411,14 @@ string getSelectedVictimPromt() {
 	}
 }
 
+// pragma inline
 integer isCaptureMenuAllowed(key targetKey) {
 	//allowed if:
 	//- the toucher isn't a victim
 	return !~getVictimIndex(targetKey) && RLV_grabRange>0;
 }
+
+// pragma inline
 integer isRestrictionsMenuAllowed(key targetKey) {
 	//allowed if:
 	//- a victim is selected
@@ -400,24 +426,32 @@ integer isRestrictionsMenuAllowed(key targetKey) {
 	//- and the victims RLV is already detected
 	return VictimKey!=NULL_KEY && !~getVictimIndex(targetKey) && getVictimRelayVersion(VictimKey);
 }
+
+// pragma inline
 integer isReleaseButtonAllowed(key targetKey) {
 	//allowed if:
 	//- a victim is selected
 	//- and the toucher isn't a victim
 	return VictimKey!=NULL_KEY && !~getVictimIndex(targetKey);
 }
+
+// pragma inline
 integer isUnsitButtonAllowed(key targetKey) {
 	//allowed if:
 	//- a victim is selected
 	//- and the toucher isn't a victim
 	return VictimKey!=NULL_KEY && !~getVictimIndex(targetKey);
 }
+
+// pragma inline
 integer isTimerMenuAllowed(key targetKey) {
 	//allowed if:
 	//- a victim is selected
 	//- and the target of the menu is not a victim, or the timer of the selected victim is already running
 	return VictimKey!=NULL_KEY && (!~getVictimIndex(targetKey) || getVictimTimer(VictimKey));
 }
+
+// pragma inline
 integer isVictimMenuAllowed(key targetKey) {
 	//allowed if:
 	//- a victim is selected and more than one entry in the vicitms list
@@ -425,15 +459,7 @@ integer isVictimMenuAllowed(key targetKey) {
 	return (llGetListLength(VictimsList) > VICTIMS_LIST_STRIDE || (llGetListLength(VictimsList)==VICTIMS_LIST_STRIDE && VictimKey==NULL_KEY));
 }
 
-
-string conditionalString(integer conditon, string valueIfTrue, string valueIfFalse) {
-	string ret=valueIfFalse;
-	if(conditon) {
-		ret=valueIfTrue;
-	}
-	return ret;
-}
-
+// NO pragma inline
 list ParseClothingOrAttachmentLayersWorn(string wornFlags, list allNames) {
 	list layersWorn;
 	integer length=llStringLength(wornFlags);
@@ -633,6 +659,8 @@ default {
 			if(str=="l") {
 				debug(
 					  ["VictimsList"] + VictimsList
+					+ ["####", "SensorList"] + SensorList
+					+ ["####", "UsersList"] + UsersList
 				);
 			}
 			else if(str=="o") {
@@ -651,14 +679,13 @@ default {
 			string menuName=llList2String(UsersList, indexUsersList + USERS_LIST_MENU_NAME);
 			removeFromUsersList(indexUsersList);
 			integer restrictionsListIndex=llListFindList(RLV_RESTRICTIONS, [menuName]);
-
 			if(menuName==MENU_RESTRICTIONS || ~restrictionsListIndex) {
 				list activeRestrictions = llParseString2List( message, [ "/" ], [] );
 				integer index;
 				integer length=llGetListLength(activeRestrictions);
 				for(; index<length; index++) {
 					string restrictionWorkingOn=llList2String(activeRestrictions, index);
-					if(llSubStringIndex(restrictionWorkingOn, ":") || llListFindList(IGNORED_RLV_RESTRICTIONS, [restrictionWorkingOn])) {
+					if(~llSubStringIndex(restrictionWorkingOn, ":") || ~llListFindList(IGNORED_RLV_RESTRICTIONS, [restrictionWorkingOn])) {
 						activeRestrictions=llDeleteSubList(activeRestrictions, index, index);
 						--index;
 						--length;
@@ -683,7 +710,7 @@ default {
 					length=llGetListLength(availibleRestrictions);
 					for(index=0; index<length; index++) {
 						string restrictionWorkingOn=llList2String(availibleRestrictions, index);
-						if(llListFindList(activeRestrictions, [restrictionWorkingOn])) {
+						if(~llListFindList(activeRestrictions, [restrictionWorkingOn])) {
 							buttons += ["☑ " + restrictionWorkingOn];
 						}
 						else {
@@ -693,7 +720,7 @@ default {
 				}
 			}
 			else if(menuName==MENU_ATTACHMENTS) {
-				buttons==ParseClothingOrAttachmentLayersWorn(message, ATTACHMENT_POINTS);
+				buttons=ParseClothingOrAttachmentLayersWorn(message, ATTACHMENT_POINTS);
 				prompt="The following attachment points are worn:\n"
 					+ llDumpList2String(buttons, ", ")
 					+ "\n\nClick a button to try to detach this attachment\n"

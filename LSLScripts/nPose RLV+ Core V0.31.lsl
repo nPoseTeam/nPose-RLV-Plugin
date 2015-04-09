@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core V0.30.lslp Wed Apr  8 18:21:10 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core V0.31.lslp Thu Apr  9 12:03:38 Mitteleuropäische Sommerzeit 2015
 
 string RLV_RELAY_API_COMMAND_RELEASE = "!release";
 string RLV_RELAY_API_COMMAND_VERSION = "!version";
@@ -40,6 +40,38 @@ key NcQueryId;
 //added for timer
 integer TimerRunning;
 
+// --- functions
+integer getTrapIgnoreIndex(key avatarUuid){
+    return llListFindList(TrapIgnoreList,[avatarUuid]);
+}
+
+trapIgnoreListRemoveTimedOutValues(){
+    integer currentTime = llGetUnixTime();
+    integer length = llGetListLength(TrapIgnoreList);
+    integer index;
+    for (; index < length; index += 2) {
+        integer timeout = llList2Integer(TrapIgnoreList,index + 1);
+        if (timeout && timeout < currentTime) {
+            TrapIgnoreList = llDeleteSubList(TrapIgnoreList,index,index + 2 - 1);
+            index -= 2;
+            length -= 2;
+        }
+    }
+}
+
+removeFromTrapIgnoreList(key avatarUuid){
+    integer index = getTrapIgnoreIndex(avatarUuid);
+    if (~index) {
+        TrapIgnoreList = llDeleteSubList(TrapIgnoreList,index,index + 2 - 1);
+    }
+}
+
+addToTrapIgnoreList(key avatarUuid){
+    TrapIgnoreList += [avatarUuid,llGetUnixTime() + 60];
+}
+
+
+// NO pragma inline
 debug(list message){
     llOwnerSay(llGetScriptName() + "\n##########\n#>" + llDumpList2String(message,"\n#>") + "\n##########");
 }
@@ -185,35 +217,6 @@ grabAvatar(key targetKey){
     }
 }
 
-// --- functions
-integer getTrapIgnoreIndex(key avatarUuid){
-    return llListFindList(TrapIgnoreList,[avatarUuid]);
-}
-
-trapIgnoreListRemoveTimedOutValues(){
-    integer currentTime = llGetUnixTime();
-    integer length = llGetListLength(TrapIgnoreList);
-    integer index;
-    for (; index < length; index += 2) {
-        integer timeout = llList2Integer(TrapIgnoreList,index + 1);
-        if (timeout && timeout < currentTime) {
-            TrapIgnoreList = llDeleteSubList(TrapIgnoreList,index,index + 2 - 1);
-            index -= 2;
-            length -= 2;
-        }
-    }
-}
-
-removeFromTrapIgnoreList(key avatarUuid){
-    integer index = getTrapIgnoreIndex(avatarUuid);
-    if (~index) {
-        TrapIgnoreList = llDeleteSubList(TrapIgnoreList,index,index + 2 - 1);
-    }
-}
-
-addToTrapIgnoreList(key avatarUuid){
-    TrapIgnoreList += [avatarUuid,llGetUnixTime() + 60];
-}
 
 default {
 

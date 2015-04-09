@@ -32,3 +32,5 @@ string RLV_RELAY_API_COMMAND_VERSION="!version";
 string RLV_RELAY_API_COMMAND_PING="ping";
 string RLV_RELAY_API_COMMAND_PONG="!pong";
 
+//other
+string STRING_NEW_LINE="\n";
