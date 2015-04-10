@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core V0.31.lslp Thu Apr  9 12:03:38 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core V0.32.lslp Fri Apr 10 13:28:01 Mitteleuropäische Sommerzeit 2015
 
 string RLV_RELAY_API_COMMAND_RELEASE = "!release";
 string RLV_RELAY_API_COMMAND_VERSION = "!version";
@@ -170,7 +170,6 @@ recaptureListRemoveTimedOutEntrys(){
 // send rlv commands to the RLV relay, usable for common format (not ping)
 // NO pragma inline
 sendToRlvRelay(key victim,string rlvCommand,string identifier){
-    debug(["sendToRlvRelay",victim,rlvCommand,identifier]);
     if (rlvCommand) {
         if (victim) {
             string valueIfFalse = (string)MyUniqueId;
@@ -311,6 +310,9 @@ default {
                             }
                             else  if (~llListFindList(FreeVictimsList,[avatarWorkingOn])) {
                             }
+                            else  if (~llListFindList(DomList,[avatarWorkingOn])) {
+                                addToFreeVictimsList(avatarWorkingOn);
+                            }
                             else  {
                                 addToVictimsList(avatarWorkingOn,RLV_trapTimer);
                                 changeCurrentVictim(avatarWorkingOn);
@@ -335,16 +337,16 @@ default {
                         FreeNonRlvEnabledSeats++;
                     }
                 }
-                integer _index26;
-                while (~(_index26 = llListFindList(GrabList,[avatarWorkingOn]))) {
+                integer _index28;
+                while (~(_index28 = llListFindList(GrabList,[avatarWorkingOn]))) {
                     {
-                        GrabList = llDeleteSubList(GrabList,_index26,_index26 + 2 - 1);
+                        GrabList = llDeleteSubList(GrabList,_index28,_index28 + 2 - 1);
                     }
                 }
-                integer _index28;
-                while (~(_index28 = llListFindList(RecaptureList,[avatarWorkingOn]))) {
+                integer _index30;
+                while (~(_index30 = llListFindList(RecaptureList,[avatarWorkingOn]))) {
                     {
-                        RecaptureList = llDeleteSubList(RecaptureList,_index28,_index28 + 3 - 1);
+                        RecaptureList = llDeleteSubList(RecaptureList,_index30,_index30 + 3 - 1);
                     }
                 }
             }
@@ -372,9 +374,9 @@ default {
                 key avatarWorkingOn = llList2Key(VictimsList,index);
                 if (!~llListFindList(slotsList,[(string)avatarWorkingOn])) {
                     integer relayVersion;
-                    integer _index34 = llListFindList(VictimsList,[avatarWorkingOn]);
-                    if (~_index34) {
-                        relayVersion = llList2Integer(VictimsList,_index34 + 2);
+                    integer _index36 = llListFindList(VictimsList,[avatarWorkingOn]);
+                    if (~_index36) {
+                        relayVersion = llList2Integer(VictimsList,_index36 + 2);
                     }
                     if (relayVersion) {
                         integer timerTime = llList2Integer(VictimsList,index + 1) - llGetUnixTime();
@@ -382,11 +384,11 @@ default {
                             timerTime = 0;
                         }
                         recaptureListRemoveTimedOutEntrys();
-                        integer _index36;
-                        while (~(_index36 = llListFindList(RecaptureList,[avatarWorkingOn]))) {
+                        integer _index38;
+                        while (~(_index38 = llListFindList(RecaptureList,[avatarWorkingOn]))) {
                             {
                                 {
-                                    RecaptureList = llDeleteSubList(RecaptureList,_index36,_index36 + 3 - 1);
+                                    RecaptureList = llDeleteSubList(RecaptureList,_index38,_index38 + 3 - 1);
                                 }
                             }
                         }
@@ -467,7 +469,6 @@ default {
                 string command = llList2String(messageParts,2);
                 string reply = llList2String(messageParts,3);
                 key senderAvatarId = llGetOwnerKey(id);
-                debug(["RLV_RELAY_CHANNEL",cmd_name,command,reply]);
                 if (command == RLV_RELAY_API_COMMAND_VERSION) {
                     integer _index1 = llListFindList(VictimsList,[senderAvatarId]);
                     if (~_index1) {

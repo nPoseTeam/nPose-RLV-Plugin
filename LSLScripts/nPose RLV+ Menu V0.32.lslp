@@ -1,5 +1,3 @@
-$import LSLScripts.constants.lslm ();
-
 //LICENSE:
 //
 //This script and the nPose scripts are licensed under the GPLv2
@@ -16,17 +14,28 @@ $import LSLScripts.constants.lslm ();
 //as OpenSim).  If the platform should allow more fine-grained permissions, then
 //"full perms" will mean the most permissive possible set of permissions allowed
 //by the platform.
+//
+// Documentation:
+// https://github.com/LeonaMorro/nPose-RLV-Plugin/wiki
+// Report Bugs to:
+// https://github.com/LeonaMorro/nPose-RLV-Plugin/issues
+// or IM slmember1 Resident (Leona)
 
-// linkMessage Numbers from -8000 to -8050 are assigned to the RLV+ Plugins
-// linkMessage Numbers from -8000 to -8009 are assigned to the RLV+ Core Plugin
-// linkMessage Numbers from -8010 to -8019 are assigned to the RLV+ RestrictionsMenu Plugin
-// linkMessage Numbers from -8020 to -8047 are reserved for later use
-// linkMessage Numbers from -8048 to -8049 are assigned to universal purposes
+/*
+linkMessage Numbers from -8000 to -8050 are assigned to the RLV+ Plugins
+linkMessage Numbers from -8000 to -8009 are assigned to the RLV+ Core Plugin
+linkMessage Numbers from -8010 to -8019 are assigned to the RLV+ RestrictionsMenu Plugin
+linkMessage Numbers from -8020 to -8047 are reserved for later use
+linkMessage Numbers from -8048 to -8049 are assigned to universal purposes
 
-// to show a menu to a user, the following steps are done:
-// 1.) showMenu: the initial step, if there are informations needed but missing they will be gatherd and then the proceess is continues with the next step
-// 2.) displayMenu: here the permissions are checked. If permissions are not ok, the main menu will be rendered
-// 3.) renderMenu: the final step: sending the DIALOG linkMessage to nPose
+to show a menu to a user, the following steps are done:
+1.) showMenu: the initial step, if there are informations needed but missing they will be gathered and the proceess continues with the next step
+2.) displayMenu: here the permissions are checked. If permissions are not ok, the main menu will be rendered
+3.) renderMenu: the final step: sending the DIALOG linkMessage to nPose
+*/
+
+
+$import LSLScripts.constants.lslm ();
 
 string PLUGIN_NAME="RLV_RESTRICTIONS_MENU";
 
@@ -256,7 +265,6 @@ init() {
 
 // NO pragma inline
 showMenu(key menuTarget, string menuName) {
-debug(["showMenu", menuTarget, menuName]);
 	if(menuName==MENU_CAPTURE) {
 		if(RLV_grabRange) {
 			sensorUserKey=menuTarget;
@@ -292,7 +300,6 @@ debug(["showMenu", menuTarget, menuName]);
 
 // NO pragma inline
 displayMenu(key menuTarget, string menuName, string additionalPrompt, list additionalButtons) {
-debug(["displayMenu", menuTarget, menuName, additionalPrompt + "---"] + additionalButtons);
 	list buttons;
 	string prompt=getSelectedVictimPromt();
 
@@ -592,9 +599,14 @@ default {
 							if(~index) {
 								key avatarWorkingOn=llList2Key(SensorList, index + SENSOR_LIST_AVATAR_UUID);
 								llMessageLinked(LINK_SET, RLV_CORE_COMMAND, "grab," + (string)avatarWorkingOn, NULL_KEY);
+								if(toucher==avatarWorkingOn) {
+									//we don't remenu immediately because the victims list should be updated before the new menu is shown
+									//If the relay is in ask mode this break doesn't give us enough time
+									llSleep(2.0);
+								}
 							}
+							llMessageLinked(LINK_SET, DOMENU, NPosePath, toucher );
 						}
-						llMessageLinked(LINK_SET, DOMENU, NPosePath, toucher );
 					}
 					else if(path==MENU_MAIN + PATH_SEPARATOR + MENU_VICTIMS) {
 						if(isVictimMenuAllowed(toucher)) {
@@ -740,7 +752,6 @@ default {
 		}
 	}
 	sensor(integer num) {
-debug(["sensor", num]);
 		// give menu the list of potential victims
 		SensorList=[];
 		integer index;
@@ -753,7 +764,6 @@ debug(["sensor", num]);
 	}
 
 	no_sensor() {
-debug(["no_sensor"]);
 		SensorList=[];
 		displayMenu(sensorUserKey, MENU_CAPTURE, "", []);
 	}

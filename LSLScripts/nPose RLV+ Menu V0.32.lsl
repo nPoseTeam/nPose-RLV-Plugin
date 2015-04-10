@@ -1,4 +1,27 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu V0.31.lslp Thu Apr  9 12:03:38 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu V0.32.lslp Fri Apr 10 14:25:47 Mitteleuropäische Sommerzeit 2015
+//LICENSE:
+//
+//This script and the nPose scripts are licensed under the GPLv2
+//(http://www.gnu.org/licenses/gpl-2.0.txt), with the following addendum:
+//
+//The nPose scripts are free to be copied, modified, and redistributed, subject
+//to the following conditions:
+//    - If you distribute the nPose scripts, you must leave them full perms.
+//    - If you modify the nPose scripts and distribute the modifications, you
+//      must also make your modifications full perms.
+//
+//"Full perms" means having the modify, copy, and transfer permissions enabled in
+//Second Life and/or other virtual world platforms derived from Second Life (such
+//as OpenSim).  If the platform should allow more fine-grained permissions, then
+//"full perms" will mean the most permissive possible set of permissions allowed
+//by the platform.
+//
+// Documentation:
+// https://github.com/LeonaMorro/nPose-RLV-Plugin/wiki
+// Report Bugs to:
+// https://github.com/LeonaMorro/nPose-RLV-Plugin/issues
+// or IM slmember1 Resident (Leona)
+
 
 string STRING_NEW_LINE = "\n";
 
@@ -151,7 +174,6 @@ init(){
 
 // NO pragma inline
 showMenu(key menuTarget,string menuName){
-    debug(["showMenu",menuTarget,menuName]);
     if (menuName == MENU_CAPTURE) {
         if (RLV_grabRange) {
             sensorUserKey = menuTarget;
@@ -187,7 +209,6 @@ showMenu(key menuTarget,string menuName){
 
 // NO pragma inline
 displayMenu(key menuTarget,string menuName,string additionalPrompt,list additionalButtons){
-    debug(["displayMenu",menuTarget,menuName,additionalPrompt + "---"] + additionalButtons);
     list buttons;
     string _ret0;
     if (VictimKey) {
@@ -395,9 +416,12 @@ default {
                             if (~index) {
                                 key avatarWorkingOn = llList2Key(SensorList,index + 1);
                                 llMessageLinked(-1,-8010,"grab," + (string)avatarWorkingOn,NULL_KEY);
+                                if (toucher == avatarWorkingOn) {
+                                    llSleep(2.0);
+                                }
                             }
+                            llMessageLinked(-1,-800,NPosePath,toucher);
                         }
-                        llMessageLinked(-1,-800,NPosePath,toucher);
                     }
                     else  if (path == MENU_MAIN + PATH_SEPARATOR + MENU_VICTIMS) {
                         if (llGetListLength(VictimsList) > 3 || (llGetListLength(VictimsList) == 3 && VictimKey == NULL_KEY)) {
@@ -534,7 +558,6 @@ default {
     }
 
 	sensor(integer num) {
-        debug(["sensor",num]);
         SensorList = [];
         integer index;
         for (; index < num; index++) {
@@ -548,7 +571,6 @@ default {
 
 
 	no_sensor() {
-        debug(["no_sensor"]);
         SensorList = [];
         displayMenu(sensorUserKey,MENU_CAPTURE,"",[]);
     }

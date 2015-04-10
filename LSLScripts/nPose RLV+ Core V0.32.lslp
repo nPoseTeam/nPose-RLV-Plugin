@@ -16,35 +16,33 @@ $import LSLScripts.constants.lslm ();
 //as OpenSim).  If the platform should allow more fine-grained permissions, then
 //"full perms" will mean the most permissive possible set of permissions allowed
 //by the platform.
+//
+// USAGE
+// put this script into an object together with at least the following npose scripts:
+// - nPose Core
+// - nPose Dialog
+// - nPose menu
+// - nPose Slave
+// - nPose RLV+ MENU
+// 
+// Add a NC called "BTN:-RLV-" with the following content:
+// LINKMSG|-8000|showmenu,%AVKEY%
+// 
+// Done.
+// 
+// Documentation:
+// https://github.com/LeonaMorro/nPose-RLV-Plugin/wiki
+// Report Bugs to:
+// https://github.com/LeonaMorro/nPose-RLV-Plugin/issues
+// or IM slmember1 Resident (Leona)
 
 /*
-USAGE
-
-put this script into an object together with at least the following npose scripts:
-- nPose Core
-- nPose Dialog
-- nPose menu
-- nPose Slave
-- nPose SAT/NOSAT handler
-
-Add a NC called "BTN:-RLV-" with the following content:
-LINKMSG|-8000|showmenu,%AVKEY%
-
-Finished
-
-Documentation:
-https://github.com/LeonaMorro/nPose-RLV-Plugin/wiki
-Bugs:
-https://github.com/LeonaMorro/nPose-RLV-Plugin/issues
-or IM slmember1 Resident (Leona)
+linkMessage Numbers from -8000 to -8050 are assigned to the RLV+ Plugins
+linkMessage Numbers from -8000 to -8009 are assigned to the RLV+ Core Plugin
+linkMessage Numbers from -8010 to -8019 are assigned to the RLV+ RestrictionsMenu Plugin
+linkMessage Numbers from -8020 to -8047 are reserved for later use
+linkMessage Numbers from -8048 to -8049 are assigned to universal purposes
 */
-
-
-// linkMessage Numbers from -8000 to -8050 are assigned to the RLV+ Plugins
-// linkMessage Numbers from -8000 to -8009 are assigned to the RLV+ Core Plugin
-// linkMessage Numbers from -8010 to -8019 are assigned to the RLV+ RestrictionsMenu Plugin
-// linkMessage Numbers from -8020 to -8047 are reserved for later use
-// linkMessage Numbers from -8048 to -8049 are assigned to universal purposes
 
 
 string PLUGIN_NAME="RLV_CORE";
@@ -339,7 +337,6 @@ recaptureListRemoveTimedOutEntrys() {
 // send rlv commands to the RLV relay, usable for common format (not ping)
 // NO pragma inline
 sendToRlvRelay(key victim, string rlvCommand, string identifier) {
-debug(["sendToRlvRelay", victim, rlvCommand, identifier]);
 	if(rlvCommand) {
 		if(victim) {
 			llSay(RLV_RELAY_CHANNEL,
@@ -521,7 +518,11 @@ default {
 								changeCurrentVictim(avatarWorkingOn);
 							}
 							else if(~getFreeVictimIndex(avatarWorkingOn)) {
-								//the avatar ist free, do nothing
+								//the avatar is free, do nothing
+							}
+							else if(~getDomIndex(avatarWorkingOn)) {
+								//the avatar is comming from a noneRlvEnabled seat
+								addToFreeVictimsList(avatarWorkingOn);
 							}
 							else {
 								//Avatar sits down voluntary
@@ -531,7 +532,7 @@ default {
 						}
 					}
 					else {
-						//This is NOT a RLV enabled seat
+						//This is a NOT RLV enabled seat
 						if(~getVictimIndex(avatarWorkingOn) || ~getRecaptureIndex(avatarWorkingOn)) {
 							sendToRlvRelay(avatarWorkingOn, RLV_RELAY_API_COMMAND_RELEASE, "");
 						}
@@ -551,7 +552,7 @@ default {
 				removeFromGrabList(avatarWorkingOn);
 				removeFromRecaptureList(avatarWorkingOn);
 			}
-			//Garbage Collection
+			// If there is an Avatar in FreeVictim list but not sitting that means the Avatar just stand up
 			length=llGetListLength(FreeVictimsList);
 			index=0;
 			for(; index < length; index+=FREE_VICTIMS_LIST_STRIDE) {
@@ -561,6 +562,7 @@ default {
 					addToTrapIgnoreList(avatarWorkingOn);
 				}
 			}
+			// If there is an Avatar in Dom list but not sitting that means the Avatar just stand up
 			length=llGetListLength(DomList);
 			index=0;
 			for(; index < length; index+=DOM_LIST_STRIDE) {
@@ -571,8 +573,7 @@ default {
 				}
 			}
 
-			//If there is a Avatar in victims list but
-			//not sitting and not in freeVictims list, this means he escaped
+			//If there is a Avatar in victims list but not sitting, this means he escaped
 			length=llGetListLength(VictimsList);
 			index=0;
 			for(; index < length; index+=VICTIMS_LIST_STRIDE) {
@@ -662,7 +663,6 @@ default {
 				string command=llList2String(messageParts, 2);
 				string reply=llList2String(messageParts, 3);
 				key senderAvatarId=llGetOwnerKey(id);
-debug(["RLV_RELAY_CHANNEL", cmd_name, command, reply]);
 				if(command==RLV_RELAY_API_COMMAND_VERSION) {
 					setVictimRelayVersion(senderAvatarId, (integer)reply);
 				}
