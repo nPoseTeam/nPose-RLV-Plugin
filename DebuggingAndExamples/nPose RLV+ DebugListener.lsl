@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): DebuggingAndExamples.nPose RLV+ DebugListener.lslp Thu Apr  9 18:24:16 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): DebuggingAndExamples.nPose RLV+ DebugListener.lslp Sat Apr 11 09:38:55 Mitteleuropäische Sommerzeit 2015
 
 
 debug(list message){
@@ -21,6 +21,9 @@ default {
         }
         else  if (num == -800) {
             debug(["DOMENU",str,(string)id]);
+        }
+        else  if (num == -802) {
+            debug(["EXTERNAL_MENU_BUTTON",str,(string)id]);
         }
         else  if (num == -900) {
             debug(["DIALOG",str,(string)id]);

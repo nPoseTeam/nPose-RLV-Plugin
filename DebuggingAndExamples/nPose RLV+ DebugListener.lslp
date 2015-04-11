@@ -19,6 +19,9 @@ default {
 		else if(num==DOMENU) {
 			debug(["DOMENU", str, (string) id]);
 		}
+		else if(num==EXTERNAL_MENU_BUTTON) {
+			debug(["EXTERNAL_MENU_BUTTON", str, (string) id]);
+		}
 		else if(num==DIALOG) {
 			debug(["DIALOG", str, (string) id]);
 		}

@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu V0.32.lslp Fri Apr 10 14:25:47 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu.lslp Sat Apr 11 10:41:18 Mitteleuropäische Sommerzeit 2015
 //LICENSE:
 //
 //This script and the nPose scripts are licensed under the GPLv2
@@ -76,7 +76,10 @@ list UsersList;
 
 key sensorUserKey;
 
+// using the NPosePath and NPoseButtonName as a global string instead of storing it for every user, means
+// that there can only be one RLV button in the menu tree. That seems to be OK for me.
 string NPosePath;
+string NPoseButtonName;
 
 float RLV_grabRange = 10.0;
 
@@ -294,6 +297,7 @@ displayMenu(key menuTarget,string menuName,string additionalPrompt,list addition
 // NO pragma inline
 renderMenu(key targetKey,string prompt,list buttons,string menuPath){
     if (targetKey) {
+        menuPath = NPosePath + PATH_SEPARATOR + NPoseButtonName + llDeleteSubString(menuPath,0,llStringLength(MENU_MAIN) - 1);
         llMessageLinked(-1,-900,(string)targetKey + "|" + prompt + STRING_NEW_LINE + menuPath + STRING_NEW_LINE + "|" + "0" + "|" + llDumpList2String(buttons,"`") + "|" + MENU_BUTTON_BACK + "|" + menuPath,MyUniqueId);
     }
 }
@@ -325,6 +329,7 @@ default {
 	link_message(integer sender,integer num,string str,key id) {
         if (num == -802) {
             NPosePath = str;
+            NPoseButtonName = MENU_MAIN;
         }
         else  if (num == -237) {
             VictimKey = (key)str;
@@ -351,9 +356,15 @@ default {
             if (id == MyUniqueId) {
                 list params = llParseString2List(str,["|"],[]);
                 string selection = llList2String(params,1);
-                string path = llList2String(params,3);
-                list pathParts = llParseString2List(path,[PATH_SEPARATOR],[]);
                 key toucher = (key)llList2String(params,2);
+                string path = llList2String(params,3);
+                if (!llSubStringIndex(path,NPosePath + PATH_SEPARATOR)) {
+                    path = llDeleteSubString(path,0,llStringLength(NPosePath + PATH_SEPARATOR) - 1);
+                }
+                if (!llSubStringIndex(path,NPoseButtonName)) {
+                    path = MENU_MAIN + llDeleteSubString(path,0,llStringLength(NPoseButtonName) - 1);
+                }
+                list pathParts = llParseString2List(path,[PATH_SEPARATOR],[]);
                 if (selection == MENU_BUTTON_BACK) {
                     selection = llList2String(pathParts,-2);
                     if (path == MENU_MAIN) {

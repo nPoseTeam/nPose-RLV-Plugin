@@ -129,7 +129,10 @@ integer USERS_LIST_STRIDE=5;
 
 key sensorUserKey;
 
+// using the NPosePath and NPoseButtonName as a global string instead of storing it for every user, means
+// that there can only be one RLV button in the menu tree. That seems to be OK for me.
 string NPosePath;
+string NPoseButtonName;
 
 float RLV_grabRange=10.0;
 
@@ -391,6 +394,8 @@ displayMenu(key menuTarget, string menuName, string additionalPrompt, list addit
 // NO pragma inline
 renderMenu(key targetKey, string prompt, list buttons, string menuPath) {
 	if(targetKey) {
+		//make the path global
+		menuPath=NPosePath + PATH_SEPARATOR + NPoseButtonName + llDeleteSubString(menuPath, 0, llStringLength(MENU_MAIN)-1);
 		llMessageLinked( LINK_SET, DIALOG,
 			(string)targetKey
 			+ "|" +
@@ -491,6 +496,7 @@ default {
 	link_message( integer sender, integer num, string str, key id ) {
 		if( num == -802) {
 			NPosePath=str;
+			NPoseButtonName=MENU_MAIN;
 		}
 		else if(num==CHANGE_SELECTED_VICTIM) {
 			VictimKey=(key)str;
@@ -518,9 +524,16 @@ default {
 				//its for me
 				list params = llParseString2List(str, ["|"], []);
 				string selection = llList2String(params, 1);
-				string path=llList2String(params, 3);
-				list pathParts = llParseString2List( path, [PATH_SEPARATOR], [] );
 				key toucher=(key)llList2String(params, 2);
+				string path=llList2String(params, 3);
+				//make the path local
+				if(!llSubStringIndex(path, NPosePath + PATH_SEPARATOR)) {
+					path=llDeleteSubString(path, 0, llStringLength(NPosePath + PATH_SEPARATOR) - 1);
+				}
+				if(!llSubStringIndex(path, NPoseButtonName)) {
+					path=MENU_MAIN + llDeleteSubString(path, 0, llStringLength(NPoseButtonName) - 1);
+				}
+				list pathParts = llParseString2List( path, [PATH_SEPARATOR], [] );
 				if(selection == MENU_BUTTON_BACK) {
 					// back button hit
 					selection=llList2String(pathParts, -2);
