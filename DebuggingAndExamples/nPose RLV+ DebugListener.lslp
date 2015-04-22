@@ -19,9 +19,6 @@ default {
 		else if(num==DOMENU) {
 			debug(["DOMENU", str, (string) id]);
 		}
-		else if(num==EXTERNAL_MENU_BUTTON) {
-			debug(["EXTERNAL_MENU_BUTTON", str, (string) id]);
-		}
 		else if(num==DIALOG) {
 			debug(["DIALOG", str, (string) id]);
 		}
@@ -30,12 +27,6 @@ default {
 		}
 		else if(num==RLV_CORE_COMMAND) {
 			debug(["RLV_CORE_COMMAND", str]);
-		}
-		else if(num==RLV_VICTIM_ADDED) {
-			debug(["RLV_VICTIM_ADDED", str]);
-		}
-		else if(num==RLV_VICTIM_REMOVED) {
-			debug(["RLV_VICTIM_REMOVED", str]);
 		}
 		else if(num==OPTIONS) {
 			debug(["OPTIONS", str]);

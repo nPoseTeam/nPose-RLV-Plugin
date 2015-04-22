@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Sat Apr 11 11:19:40 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Wed Apr 22 13:03:30 Mitteleuropäische Sommerzeit 2015
 
 string RLV_RELAY_API_COMMAND_RELEASE = "!release";
 string RLV_RELAY_API_COMMAND_VERSION = "!version";
@@ -89,7 +89,6 @@ addToVictimsList(key avatarUuid,integer timerTime){
     }
     VictimsList += [avatarUuid,timerTime,0];
     llMessageLinked(-1,-238,llList2CSV(VictimsList),"");
-    llMessageLinked(-1,-8011,(string)avatarUuid,"");
     sendToRlvRelay(avatarUuid,RLV_RELAY_API_COMMAND_VERSION + "|" + RlvBaseRestrictions,"");
     if (!TimerRunning) {
         llSetTimerEvent(1.0);
@@ -103,7 +102,6 @@ removeFromVictimsList(key avatarUuid){
     integer index;
     while (~(index = llListFindList(VictimsList,[avatarUuid]))) {
         VictimsList = llDeleteSubList(VictimsList,index,index + 3 - 1);
-        llMessageLinked(-1,-8012,(string)avatarUuid,"");
         isChanged = 1;
     }
     if (isChanged) {

@@ -2,16 +2,13 @@ $module ()
 
 //LinkMessages
 integer DOMENU                 = -800; // dialog control back to npose
-integer EXTERNAL_MENU_BUTTON   = -802; // TODO: we have to get rid of theses message
 integer DIALOG                 = -900; // start dialog
 integer DIALOG_RESPONSE        = -901; // eval dialog response
 
 integer CHANGE_SELECTED_VICTIM = -237;
 integer UPDATE_VICTIMS_LIST    = -238; // this is used by nPose menu to maintain the VictimsList
-integer RLV_MENU_COMMAND       = -8000; //send commands to the RLV CORE
-integer RLV_CORE_COMMAND       = -8010; //send commands to the RLV RESTRICTIONS MENU
-integer RLV_VICTIM_ADDED       = -8011; //if a someone is added to the victims list this message would be send
-integer RLV_VICTIM_REMOVED     = -8012; //if a someone is removed from the victims list this message would be send
+integer RLV_MENU_COMMAND       = -8000; //send commands to the RLV MENU
+integer RLV_CORE_COMMAND       = -8010; //send commands to the RLV CORE
 
 integer RLV_MENU_DUMP_DEBUG_STRING = -8008; //TODO: remove this
 integer RLV_CORE_DUMP_DEBUG_STRING = -8018; //TODO: remove this
@@ -35,3 +32,6 @@ string RLV_RELAY_API_COMMAND_PONG="!pong";
 
 //other
 string STRING_NEW_LINE="\n";
+string PATH_SEPARATOR=":";
+integer BUTTON_MAX_LENGHT=16;
+string MENU_BUTTON_BACK ="^";

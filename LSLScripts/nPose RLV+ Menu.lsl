@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu.lslp Sat Apr 11 11:19:40 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu.lslp Wed Apr 22 14:27:16 Mitteleuropäische Sommerzeit 2015
 //LICENSE:
 //
 //This script and the nPose scripts are licensed under the GPLv2
@@ -24,6 +24,8 @@
 
 
 string STRING_NEW_LINE = "\n";
+string PATH_SEPARATOR = ":";
+string MENU_BUTTON_BACK = "^";
 
 string STRING_PROMPT_VICTIM_CAPTION = "Selected Victim: ";
 string STRING_PROMPT_VICTIM_NONE = "NONE";
@@ -34,9 +36,6 @@ string STRING_PROMPT_RELAY_CAPTION = "RLV Relay: ";
 string STRING_PROMPT_RELAY_DETECTED = "OK";
 string STRING_PROMPT_RELAY_NOTDETECTED = "NOT RECOGNIZED";
 string STRING_PROMPT_TIMER_ZERO = "--:--:--";
-
-string MENU_BUTTON_BACK = "^";
-string MENU_MAIN = "RLVMain";
 string MENU_CAPTURE = "→Capture";
 string MENU_RESTRICTIONS = "→Restrictions";
 string MENU_UNDRESS = "→Undress";
@@ -45,9 +44,6 @@ string MENU_VICTIMS = "→Victims";
 string MENU_TIMER = "→Timer";
 string MENU_BUTTON_RELEASE = "Release";
 string MENU_BUTTON_UNSIT = "Unsit";
-
-string PATH_SEPARATOR = ":";
-
 
 list RLV_RESTRICTIONS = ["→Chat/IM","sendchat,chatshout,chatnormal,recvchat,recvemote,sendim,startim,recvim","→Inventory","showinv,viewnote,viewscript,viewtexture,edit,rez,unsharedwear,unsharedunwear","→Touch","fartouch,touchall,touchworld,touchattach","→World","shownames,showhovertextall,showworldmap,showminimap,showloc","→Debug/Env","setgroup,setdebug,setenv"];
 
@@ -72,14 +68,9 @@ list VictimsList;
 
 list SensorList;
 
+list SensorUsersList;
+
 list UsersList;
-
-key sensorUserKey;
-
-// using the NPosePath and NPoseButtonName as a global string instead of storing it for every user, means
-// that there can only be one RLV button in the menu tree. That seems to be OK for me.
-string NPosePath;
-string NPoseButtonName;
 
 float RLV_grabRange = 10.0;
 
@@ -150,7 +141,7 @@ string conditionalString(integer conditon,string valueIfTrue,string valueIfFalse
 removeFromUsersList(integer index){
     if (~index) {
         llListenRemove(llList2Integer(UsersList,index + 1));
-        UsersList = llDeleteSubList(UsersList,index,index + 5 - 1);
+        UsersList = llDeleteSubList(UsersList,index,index + 6 - 1);
     }
     if (!llGetListLength(UsersList)) {
         llSetTimerEvent(0.0);
@@ -158,11 +149,11 @@ removeFromUsersList(integer index){
 }
 
 // NO pragma inline
-integer addToUsersList(key menuTarget,string menuName){
-    integer index = llListFindList(UsersList,[menuTarget,menuName]) - 2;
+integer addToUsersList(key menuTarget,string basePath,string localPath){
+    integer index = llListFindList(UsersList,[menuTarget,basePath,localPath]) - 2;
     removeFromUsersList(index);
     integer channel = (integer)(llFrand(1.0e9) + 1.0e9);
-    UsersList += [channel,llListen(channel,"",NULL_KEY,""),menuTarget,menuName,llGetUnixTime() + 4];
+    UsersList += [channel,llListen(channel,"",NULL_KEY,""),menuTarget,basePath,localPath,llGetUnixTime() + 4];
     llSetTimerEvent(1.0);
     return channel;
 }
@@ -173,56 +164,52 @@ init(){
     llListenRemove(rlvResponseHandle);
     rlvResponseChannel = (integer)(llFrand(-1.0e9) - 1.0e9);
     rlvResponseHandle = llListen(rlvResponseChannel,"",NULL_KEY,"");
+    SensorUsersList = [];
+    UsersList = [];
 }
 
 // NO pragma inline
-showMenu(key menuTarget,string menuName){
+showMenu(key menuTarget,string basePath,string localPath){
+    string menuName = llList2String(llParseStringKeepNulls(localPath,[PATH_SEPARATOR],[]),-1);
     if (menuName == MENU_CAPTURE) {
         if (RLV_grabRange) {
-            sensorUserKey = menuTarget;
+            integer index = llListFindList(SensorUsersList,[menuTarget]);
+            if (~index) {
+                SensorUsersList = llDeleteSubList(SensorUsersList,index,index + 2 - 1);
+            }
+            SensorUsersList += [menuTarget,basePath,localPath];
             llSensor("",NULL_KEY,1,RLV_grabRange,3.14159265);
         }
         else  {
-            displayMenu(menuTarget,menuName,"",[]);
+            displayMenu(menuTarget,basePath,localPath,"",[]);
         }
     }
     else  if (menuName == MENU_RESTRICTIONS) {
-        integer channel = addToUsersList(menuTarget,menuName);
+        integer channel = addToUsersList(menuTarget,basePath,localPath);
         llMessageLinked(-1,-8010,"rlvCommand,%VICTIM%,@getstatus=" + (string)channel,NULL_KEY);
     }
     else  if (menuName == MENU_UNDRESS) {
-        integer channel = addToUsersList(menuTarget,menuName);
+        integer channel = addToUsersList(menuTarget,basePath,localPath);
         llMessageLinked(-1,-8010,"rlvCommand,%VICTIM%,@getoutfit=" + (string)channel,NULL_KEY);
     }
     else  if (menuName == MENU_ATTACHMENTS) {
-        integer channel = addToUsersList(menuTarget,menuName);
+        integer channel = addToUsersList(menuTarget,basePath,localPath);
         llMessageLinked(-1,-8010,"rlvCommand,%VICTIM%,@getattach=" + (string)channel,NULL_KEY);
     }
     else  if (~llListFindList(RLV_RESTRICTIONS,[menuName])) {
-        integer channel = addToUsersList(menuTarget,menuName);
+        integer channel = addToUsersList(menuTarget,basePath,localPath);
         llMessageLinked(-1,-8010,"rlvCommand,%VICTIM%,@getstatus=" + (string)channel,NULL_KEY);
     }
     else  {
-        if (menuName == "") {
-            menuName = MENU_MAIN;
-        }
-        displayMenu(menuTarget,menuName,"",[]);
+        displayMenu(menuTarget,basePath,localPath,"",[]);
     }
 }
 
 // NO pragma inline
-displayMenu(key menuTarget,string menuName,string additionalPrompt,list additionalButtons){
+displayMenu(key menuTarget,string basePath,string localPath,string additionalPrompt,list additionalButtons){
     list buttons;
-    string _ret0;
-    if (VictimKey) {
-        _ret0 = STRING_PROMPT_VICTIM_CAPTION + llKey2Name(VictimKey) + STRING_NEW_LINE;
-    }
-    else  {
-        _ret0 = STRING_PROMPT_VICTIM_CAPTION + STRING_PROMPT_VICTIM_NONE + STRING_NEW_LINE;
-    }
-    string prompt = _ret0;
-    integer index = llListFindList(UsersList,[menuTarget,menuName]) - 2;
-    removeFromUsersList(index);
+    string prompt = STRING_PROMPT_VICTIM_CAPTION + conditionalString(VictimKey != NULL_KEY,llKey2Name(VictimKey),STRING_PROMPT_VICTIM_NONE);
+    string menuName = llList2String(llParseStringKeepNulls(localPath,[PATH_SEPARATOR],[]),-1);
     if (menuName == MENU_VICTIMS) {
         if (llGetListLength(VictimsList) > 3 || (llGetListLength(VictimsList) == 3 && VictimKey == NULL_KEY)) {
             integer length = llGetListLength(VictimsList);
@@ -230,18 +217,12 @@ displayMenu(key menuTarget,string menuName,string additionalPrompt,list addition
             for (; n < length; n += 3) {
                 buttons += llGetSubString(llKey2Name(llList2Key(VictimsList,n)),0,15);
             }
-            renderMenu(menuTarget,prompt + STRING_PROMPT_VICTIM_SELECT,buttons,MENU_MAIN + PATH_SEPARATOR + MENU_VICTIMS);
-        }
-        else  {
-            menuName = MENU_MAIN;
+            renderMenu(menuTarget,basePath,localPath,prompt + STRING_NEW_LINE + STRING_PROMPT_VICTIM_SELECT,buttons);
         }
     }
     else  if (menuName == MENU_CAPTURE) {
         if (!~llListFindList(VictimsList,[(string)menuTarget]) && RLV_grabRange > 0) {
-            renderMenu(menuTarget,STRING_PROMPT_VICTIM_SELECT,additionalButtons,MENU_MAIN + PATH_SEPARATOR + MENU_CAPTURE);
-        }
-        else  {
-            menuName = MENU_MAIN;
+            renderMenu(menuTarget,basePath,localPath,STRING_PROMPT_VICTIM_SELECT,additionalButtons);
         }
     }
     else  if (menuName == MENU_TIMER) {
@@ -250,25 +231,15 @@ displayMenu(key menuTarget,string menuName,string additionalPrompt,list addition
             if (!~llListFindList(VictimsList,[(string)menuTarget])) {
                 buttons += TIMER_BUTTONS2;
             }
-            renderMenu(menuTarget,prompt + getVictimTimerString(VictimKey),buttons,MENU_MAIN + PATH_SEPARATOR + MENU_TIMER);
-        }
-        else  {
-            menuName = MENU_MAIN;
+            renderMenu(menuTarget,basePath,localPath,prompt + STRING_NEW_LINE + getVictimTimerString(VictimKey),buttons);
         }
     }
     else  if (menuName == MENU_RESTRICTIONS || menuName == MENU_UNDRESS || menuName == MENU_ATTACHMENTS || ~llListFindList(RLV_RESTRICTIONS,[menuName])) {
         if (VictimKey != NULL_KEY && !~llListFindList(VictimsList,[(string)menuTarget]) && getVictimRelayVersion(VictimKey)) {
-            string path = MENU_MAIN + PATH_SEPARATOR + MENU_RESTRICTIONS;
-            if (menuName != MENU_RESTRICTIONS) {
-                path += PATH_SEPARATOR + menuName;
-            }
-            renderMenu(menuTarget,prompt + additionalPrompt,additionalButtons,path);
-        }
-        else  {
-            menuName = MENU_MAIN;
+            renderMenu(menuTarget,basePath,localPath,prompt + STRING_NEW_LINE + additionalPrompt,additionalButtons);
         }
     }
-    if (menuName == MENU_MAIN) {
+    if (menuName == "") {
         if (!~llListFindList(VictimsList,[(string)menuTarget]) && RLV_grabRange > 0) {
             buttons += [MENU_CAPTURE];
         }
@@ -288,17 +259,16 @@ displayMenu(key menuTarget,string menuName,string additionalPrompt,list addition
             buttons += [MENU_VICTIMS];
         }
         if (VictimKey) {
-            prompt += STRING_PROMPT_RELAY_CAPTION + conditionalString(getVictimRelayVersion(VictimKey),STRING_PROMPT_RELAY_DETECTED,STRING_PROMPT_RELAY_NOTDETECTED) + STRING_NEW_LINE + getVictimTimerString(VictimKey);
+            prompt += STRING_NEW_LINE + STRING_PROMPT_RELAY_CAPTION + conditionalString(getVictimRelayVersion(VictimKey),STRING_PROMPT_RELAY_DETECTED,STRING_PROMPT_RELAY_NOTDETECTED) + STRING_NEW_LINE + getVictimTimerString(VictimKey);
         }
-        renderMenu(menuTarget,prompt,buttons,MENU_MAIN);
+        renderMenu(menuTarget,basePath,localPath,prompt,buttons);
     }
 }
 
 // NO pragma inline
-renderMenu(key targetKey,string prompt,list buttons,string menuPath){
+renderMenu(key targetKey,string basePath,string localPath,string prompt,list buttons){
     if (targetKey) {
-        menuPath = NPosePath + PATH_SEPARATOR + NPoseButtonName + llDeleteSubString(menuPath,0,llStringLength(MENU_MAIN) - 1);
-        llMessageLinked(-1,-900,(string)targetKey + "|" + prompt + STRING_NEW_LINE + menuPath + STRING_NEW_LINE + "|" + "0" + "|" + llDumpList2String(buttons,"`") + "|" + MENU_BUTTON_BACK + "|" + menuPath,MyUniqueId);
+        llMessageLinked(-1,-900,(string)targetKey + "|" + prompt + STRING_NEW_LINE + STRING_NEW_LINE + basePath + localPath + STRING_NEW_LINE + "|0|" + llDumpList2String(buttons,"`") + "|" + conditionalString(basePath != "" || localPath != "",MENU_BUTTON_BACK,"") + "|" + basePath + "," + localPath,MyUniqueId);
     }
 }
 
@@ -327,11 +297,7 @@ default {
     }
 
 	link_message(integer sender,integer num,string str,key id) {
-        if (num == -802) {
-            NPosePath = str;
-            NPoseButtonName = MENU_MAIN;
-        }
-        else  if (num == -237) {
+        if (num == -237) {
             VictimKey = (key)str;
         }
         else  if (num == -238) {
@@ -349,7 +315,7 @@ default {
                 target = VictimKey;
             }
             if (cmd == "showmenu") {
-                showMenu(target,llList2String(params,0));
+                showMenu(target,llList2String(params,0),llList2String(params,1));
             }
         }
         else  if (num == -901) {
@@ -357,34 +323,26 @@ default {
                 list params = llParseString2List(str,["|"],[]);
                 string selection = llList2String(params,1);
                 key toucher = (key)llList2String(params,2);
-                string path = llList2String(params,3);
-                if (!llSubStringIndex(path,NPosePath + PATH_SEPARATOR)) {
-                    path = llDeleteSubString(path,0,llStringLength(NPosePath + PATH_SEPARATOR) - 1);
-                }
-                if (!llSubStringIndex(path,NPoseButtonName)) {
-                    path = MENU_MAIN + llDeleteSubString(path,0,llStringLength(NPoseButtonName) - 1);
-                }
-                list pathParts = llParseString2List(path,[PATH_SEPARATOR],[]);
+                list tempPath = llParseStringKeepNulls(llList2String(params,3),[","],[]);
+                string basePath = llList2String(tempPath,0);
+                string localPath = llList2String(tempPath,1);
+                list localPathParts = llParseStringKeepNulls(localPath,[PATH_SEPARATOR],[]);
                 if (selection == MENU_BUTTON_BACK) {
-                    selection = llList2String(pathParts,-2);
-                    if (path == MENU_MAIN) {
-                        llMessageLinked(-1,-800,NPosePath,toucher);
-                        return;
-                    }
-                    else  if (selection == MENU_MAIN) {
-                        showMenu(toucher,MENU_MAIN);
-                        return;
+                    if (localPath == "") {
+                        basePath = llDumpList2String(llDeleteSubList(llParseStringKeepNulls(basePath,[PATH_SEPARATOR],[]),-1,-1),PATH_SEPARATOR);
+                        if (basePath) {
+                            llMessageLinked(-1,-800,basePath,toucher);
+                        }
                     }
                     else  {
-                        pathParts = llDeleteSubList(pathParts,-2,-1);
-                        path = llDumpList2String(pathParts,PATH_SEPARATOR);
+                        showMenu(toucher,basePath,llDumpList2String(llDeleteSubList(localPathParts,-1,-1),PATH_SEPARATOR));
                     }
                 }
-                if (selection == MENU_MAIN || selection == MENU_ATTACHMENTS || selection == MENU_CAPTURE || selection == MENU_RESTRICTIONS || selection == MENU_TIMER || selection == MENU_UNDRESS || selection == MENU_VICTIMS || ~llListFindList(RLV_RESTRICTIONS,[selection])) {
-                    showMenu(toucher,selection);
+                else  if (selection == "" || selection == MENU_ATTACHMENTS || selection == MENU_CAPTURE || selection == MENU_RESTRICTIONS || selection == MENU_TIMER || selection == MENU_UNDRESS || selection == MENU_VICTIMS || ~llListFindList(RLV_RESTRICTIONS,[selection])) {
+                    showMenu(toucher,basePath,localPath + PATH_SEPARATOR + selection);
                 }
                 else  {
-                    if (path == MENU_MAIN) {
+                    if (localPath == "") {
                         if (selection == MENU_BUTTON_UNSIT || selection == MENU_BUTTON_RELEASE) {
                             if (selection == MENU_BUTTON_UNSIT && VictimKey != NULL_KEY && !~llListFindList(VictimsList,[(string)toucher])) {
                                 llMessageLinked(-1,-8010,"unsit,%VICTIM%",NULL_KEY);
@@ -394,34 +352,34 @@ default {
                                 llMessageLinked(-1,-8010,"release,%VICTIM%",NULL_KEY);
                                 llSleep(1.0);
                             }
-                            llMessageLinked(-1,-8000,"showMenu," + (string)toucher + "," + MENU_MAIN,NULL_KEY);
+                            llMessageLinked(-1,-8000,"showMenu," + (string)toucher + "," + basePath + "," + localPath,NULL_KEY);
                         }
                     }
-                    else  if (!llSubStringIndex(path,MENU_MAIN + PATH_SEPARATOR + MENU_RESTRICTIONS)) {
+                    else  if (!llSubStringIndex(localPath,PATH_SEPARATOR + MENU_RESTRICTIONS)) {
                         if (VictimKey != NULL_KEY && !~llListFindList(VictimsList,[(string)toucher]) && getVictimRelayVersion(VictimKey)) {
                             if (~llListFindList(ATTACHMENT_POINTS,[selection])) {
                                 llMessageLinked(-1,-8010,"rlvCommand,%VICTIM%,@remattach:" + selection + "=force",NULL_KEY);
                                 llSleep(0.5);
-                                showMenu(toucher,MENU_ATTACHMENTS);
+                                showMenu(toucher,basePath,localPath);
                             }
                             else  if (~llListFindList(CLOTHING_LAYERS,[selection])) {
                                 llMessageLinked(-1,-8010,"rlvCommand,%VICTIM%,@remoutfit:" + selection + "=force",NULL_KEY);
                                 llSleep(0.5);
-                                showMenu(toucher,MENU_UNDRESS);
+                                showMenu(toucher,basePath,localPath);
                             }
                             else  if (llGetSubString(selection,0,0) == "☐") {
                                 llMessageLinked(-1,-8010,"rlvCommand,%VICTIM%,@" + llStringTrim(llDeleteSubString(selection,0,1),3) + "=n",NULL_KEY);
                                 llSleep(0.5);
-                                showMenu(toucher,llList2String(pathParts,-1));
+                                showMenu(toucher,basePath,localPath);
                             }
                             else  if (llGetSubString(selection,0,0) == "☑") {
                                 llMessageLinked(-1,-8010,"rlvCommand,%VICTIM%,@" + llStringTrim(llDeleteSubString(selection,0,1),3) + "=y",NULL_KEY);
                                 llSleep(0.5);
-                                showMenu(toucher,llList2String(pathParts,-1));
+                                showMenu(toucher,basePath,localPath);
                             }
                         }
                     }
-                    else  if (path == MENU_MAIN + PATH_SEPARATOR + MENU_CAPTURE) {
+                    else  if (localPath == PATH_SEPARATOR + MENU_CAPTURE) {
                         if (!~llListFindList(VictimsList,[(string)toucher]) && RLV_grabRange > 0) {
                             integer index = llListFindList(SensorList,[selection]);
                             if (~index) {
@@ -431,10 +389,10 @@ default {
                                     llSleep(2.0);
                                 }
                             }
-                            llMessageLinked(-1,-800,NPosePath,toucher);
+                            llMessageLinked(-1,-800,llDumpList2String(llDeleteSubList(llParseStringKeepNulls(basePath,[PATH_SEPARATOR],[]),-1,-1),PATH_SEPARATOR),toucher);
                         }
                     }
-                    else  if (path == MENU_MAIN + PATH_SEPARATOR + MENU_VICTIMS) {
+                    else  if (localPath == PATH_SEPARATOR + MENU_VICTIMS) {
                         if (llGetListLength(VictimsList) > 3 || (llGetListLength(VictimsList) == 3 && VictimKey == NULL_KEY)) {
                             integer length = llGetListLength(VictimsList);
                             integer index;
@@ -446,9 +404,9 @@ default {
                                 }
                             }
                         }
-                        showMenu(toucher,MENU_MAIN);
+                        showMenu(toucher,basePath,localPath);
                     }
-                    else  if (path == MENU_MAIN + PATH_SEPARATOR + MENU_TIMER) {
+                    else  if (localPath == PATH_SEPARATOR + MENU_TIMER) {
                         if (VictimKey != NULL_KEY && (!~llListFindList(VictimsList,[(string)toucher]) || getVictimTimer(VictimKey))) {
                             if (selection == "Reset") {
                                 setVictimTimer(VictimKey,0);
@@ -480,7 +438,7 @@ default {
                                     setVictimTimer(avatarUuid,newTime);
                                 }
                             }
-                            showMenu(toucher,MENU_TIMER);
+                            showMenu(toucher,basePath,localPath);
                         }
                     }
                 }
@@ -518,8 +476,10 @@ default {
         list buttons;
         if (~(indexUsersList = llListFindList(UsersList,[channel]))) {
             key menuTarget = llList2Key(UsersList,indexUsersList + 2);
-            string menuName = llList2String(UsersList,indexUsersList + 3);
+            string basePath = llList2String(UsersList,indexUsersList + 3);
+            string localPath = llList2String(UsersList,indexUsersList + 4);
             removeFromUsersList(indexUsersList);
+            string menuName = llList2String(llParseStringKeepNulls(localPath,[PATH_SEPARATOR],[]),-1);
             integer restrictionsListIndex = llListFindList(RLV_RESTRICTIONS,[menuName]);
             if (menuName == MENU_RESTRICTIONS || ~restrictionsListIndex) {
                 list activeRestrictions = llParseString2List(message,["/"],[]);
@@ -558,13 +518,13 @@ default {
             }
             else  if (menuName == MENU_ATTACHMENTS) {
                 buttons = ParseClothingOrAttachmentLayersWorn(message,ATTACHMENT_POINTS);
-                prompt = "The following attachment points are worn:\n" + llDumpList2String(buttons,", ") + "\n\nClick a button to try to detach this attachment\n" + "(Beware some might be locked and can't be removed)\n";
+                prompt = "The following attachment points are worn:\n" + llDumpList2String(buttons,", ") + "\n\nClick a button to try to detach this attachment\n" + "(Beware some might be locked and can't be removed)";
             }
             else  if (menuName == MENU_UNDRESS) {
                 buttons = ParseClothingOrAttachmentLayersWorn(message,CLOTHING_LAYERS);
-                prompt = "The following clothing layers are worn:\n" + llDumpList2String(buttons,", ") + "\n\nClick a button to try to detach this layer\n" + "(Beware some might be locked and can't be removed)\n";
+                prompt = "The following clothing layers are worn:\n" + llDumpList2String(buttons,", ") + "\n\nClick a button to try to detach this layer\n" + "(Beware some might be locked and can't be removed)";
             }
-            displayMenu(menuTarget,menuName,prompt,buttons);
+            displayMenu(menuTarget,basePath,localPath,prompt,buttons);
         }
     }
 
@@ -577,13 +537,22 @@ default {
                 SensorList += [llGetSubString(llDetectedName(index),0,15),llDetectedKey(index)];
             }
         }
-        displayMenu(sensorUserKey,MENU_CAPTURE,"",llList2ListStrided(SensorList,0,-1,2));
+        integer length = llGetListLength(SensorUsersList);
+        for (index = 0; index < length; index += 3) {
+            displayMenu(llList2Key(SensorUsersList,index),llList2Key(SensorUsersList,index + 1),llList2Key(SensorUsersList,index + 2),"",llList2ListStrided(SensorList,0,-1,2));
+        }
+        SensorUsersList = [];
     }
 
 
 	no_sensor() {
         SensorList = [];
-        displayMenu(sensorUserKey,MENU_CAPTURE,"",[]);
+        integer length = llGetListLength(SensorUsersList);
+        integer index;
+        for (; index < length; index += 3) {
+            displayMenu(llList2Key(SensorUsersList,index),llList2Key(SensorUsersList,index + 1),llList2Key(SensorUsersList,index + 2),"",[]);
+        }
+        SensorUsersList = [];
     }
 
 	on_rez(integer start_param) {
@@ -600,11 +569,11 @@ default {
         integer length = llGetListLength(UsersList);
         integer index;
         integer currentTime = llGetUnixTime();
-        for (; index < length; index += 5) {
-            if (currentTime > llList2Integer(UsersList,index + 4)) {
+        for (; index < length; index += 6) {
+            if (currentTime > llList2Integer(UsersList,index + 5)) {
                 removeFromUsersList(index);
-                index -= 5;
-                length -= 5;
+                index -= 6;
+                length -= 6;
             }
         }
     }

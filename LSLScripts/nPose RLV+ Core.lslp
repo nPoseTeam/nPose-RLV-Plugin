@@ -189,7 +189,7 @@ addToVictimsList(key avatarUuid, integer timerTime) {
 	}
 	VictimsList+=[avatarUuid, timerTime, 0];
 	llMessageLinked(LINK_SET, UPDATE_VICTIMS_LIST, llList2CSV(VictimsList), "");
-	llMessageLinked(LINK_SET, RLV_VICTIM_ADDED, (string)avatarUuid, "");
+//	llMessageLinked(LINK_SET, RLV_VICTIM_ADDED, (string)avatarUuid, "");
 	//do Relay check and apply restrictions
 	sendToRlvRelay(avatarUuid, RLV_RELAY_API_COMMAND_VERSION + "|" + RlvBaseRestrictions, "");
 	//the timer should be running if there is a victim in the list
@@ -205,7 +205,7 @@ removeFromVictimsList(key avatarUuid) {
 	integer index;
 	while(~(index=getVictimIndex(avatarUuid))) {
 		VictimsList=llDeleteSubList(VictimsList, index, index + VICTIMS_LIST_STRIDE - 1);
-		llMessageLinked(LINK_SET, RLV_VICTIM_REMOVED, (string)avatarUuid, "");
+//		llMessageLinked(LINK_SET, RLV_VICTIM_REMOVED, (string)avatarUuid, "");
 		isChanged=TRUE;
 	}
 	if(isChanged) {

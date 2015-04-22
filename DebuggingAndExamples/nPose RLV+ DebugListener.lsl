@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): DebuggingAndExamples.nPose RLV+ DebugListener.lslp Sat Apr 11 11:19:40 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): DebuggingAndExamples.nPose RLV+ DebugListener.lslp Wed Apr 22 13:04:42 Mitteleuropäische Sommerzeit 2015
 
 
 debug(list message){
@@ -22,9 +22,6 @@ default {
         else  if (num == -800) {
             debug(["DOMENU",str,(string)id]);
         }
-        else  if (num == -802) {
-            debug(["EXTERNAL_MENU_BUTTON",str,(string)id]);
-        }
         else  if (num == -900) {
             debug(["DIALOG",str,(string)id]);
         }
@@ -33,12 +30,6 @@ default {
         }
         else  if (num == -8010) {
             debug(["RLV_CORE_COMMAND",str]);
-        }
-        else  if (num == -8011) {
-            debug(["RLV_VICTIM_ADDED",str]);
-        }
-        else  if (num == -8012) {
-            debug(["RLV_VICTIM_REMOVED",str]);
         }
         else  if (num == -240) {
             debug(["OPTIONS",str]);
