@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu.lslp Wed Apr 22 14:27:16 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu.lslp Fri Apr 24 19:01:29 Mitteleuropäische Sommerzeit 2015
 //LICENSE:
 //
 //This script and the nPose scripts are licensed under the GPLv2
@@ -55,6 +55,7 @@ list ATTACHMENT_POINTS = ["","chest","skull","left shoulder","right shoulder","l
 
 list TIMER_BUTTONS1 = ["+1d","+6h","+1h","+15m","+1m"];
 list TIMER_BUTTONS2 = ["-1d","-6h","-1h","-15m","-1m","Reset"];
+list CARD_NAMES = ["DEFAULT","SET","BTN","SEQ"];
 
 
 key MyUniqueId;
@@ -289,7 +290,6 @@ list ParseClothingOrAttachmentLayersWorn(string wornFlags,list allNames){
 }
 
 
-
 default {
 
 	state_entry() {
@@ -315,7 +315,15 @@ default {
                 target = VictimKey;
             }
             if (cmd == "showmenu") {
-                showMenu(target,llList2String(params,0),llList2String(params,1));
+                list pathParts = llParseStringKeepNulls(llList2String(params,0),[PATH_SEPARATOR],[]);
+                if (~llListFindList(CARD_NAMES,[llList2String(pathParts,0)])) {
+                    pathParts = "Main" + llDeleteSubList(pathParts,0,0);
+                }
+                integer _index4 = llSubStringIndex(llList2String(pathParts,-1),"{");
+                if (~_index4) {
+                    pathParts = llDeleteSubList(pathParts,-1,-1) + llDeleteSubString(llList2String(pathParts,-1),_index4,-1);
+                }
+                showMenu(target,llDumpList2String(pathParts,PATH_SEPARATOR),llList2String(params,1));
             }
         }
         else  if (num == -901) {
@@ -424,10 +432,10 @@ default {
                                     multiplier = 604800;
                                 }
                                 key avatarUuid = VictimKey;
-                                integer _index16 = llListFindList(VictimsList,[(string)avatarUuid]);
-                                if (~_index16) {
+                                integer _index19 = llListFindList(VictimsList,[(string)avatarUuid]);
+                                if (~_index19) {
                                     integer thisTime = llGetUnixTime();
-                                    integer oldTime = llList2Integer(VictimsList,_index16 + 1);
+                                    integer oldTime = llList2Integer(VictimsList,_index19 + 1);
                                     if (oldTime < thisTime) {
                                         oldTime = thisTime;
                                     }

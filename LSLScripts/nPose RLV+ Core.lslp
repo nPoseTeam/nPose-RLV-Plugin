@@ -1,4 +1,4 @@
-$import LSLScripts.constants.lslm ();
+$import LSLScripts.constantsRlvPlugin.lslm ();
 
 //LICENSE:
 //

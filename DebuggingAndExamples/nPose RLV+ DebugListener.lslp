@@ -1,4 +1,4 @@
-$import LSLScripts.constants.lslm ();
+$import LSLScripts.constantsRlvPlugin.lslm ();
 
 debug(list message) {
 	llOwnerSay(llGetScriptName() + "\n#>" + llDumpList2String(message, "\n#>"));

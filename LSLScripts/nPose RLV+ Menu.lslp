@@ -35,7 +35,7 @@ to show a menu to a user, the following steps are done:
 */
 
 
-$import LSLScripts.constants.lslm ();
+$import LSLScripts.constantsRlvPlugin.lslm ();
 
 string PLUGIN_NAME="RLV_RESTRICTIONS_MENU";
 
@@ -94,6 +94,7 @@ list TIMER_BUTTONS2 = [
 	"-1d", "-6h", "-1h", "-15m", "-1m",
 	"Reset"
 ];
+list CARD_NAMES=["DEFAULT", "SET", "BTN", "SEQ"];
 
 
 key	MyUniqueId;
@@ -456,6 +457,18 @@ list ParseClothingOrAttachmentLayersWorn(string wornFlags, list allNames) {
 	return layersWorn;
 }
 
+// pragma inline
+string getPathFromCardName(string cardName) {
+	list pathParts=llParseStringKeepNulls(cardName, [PATH_SEPARATOR], []);
+	if(~llListFindList(CARD_NAMES, [llList2String(pathParts, 0)])) {
+		pathParts="Main" + llDeleteSubList(pathParts, 0, 0);
+	}
+	integer index=llSubStringIndex(llList2String(pathParts, -1), "{");
+	if(~index) {
+		pathParts=llDeleteSubList(pathParts, -1, -1) + llDeleteSubString(llList2String(pathParts, -1), index, -1);
+	}
+	return llDumpList2String(pathParts, PATH_SEPARATOR);
+}
 
 
 default {
@@ -481,7 +494,7 @@ default {
 			}
 			
 			if(cmd=="showmenu") {
-				showMenu(target, llList2String(params, 0), llList2String(params, 1));
+				showMenu(target, getPathFromCardName(llList2String(params, 0)), llList2String(params, 1));
 			}
 		}
 		else if(num==DIALOG_RESPONSE) {
