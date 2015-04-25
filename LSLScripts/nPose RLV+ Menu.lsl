@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu.lslp Fri Apr 24 19:01:29 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu.lslp Sat Apr 25 09:19:52 Mitteleuropäische Sommerzeit 2015
 //LICENSE:
 //
 //This script and the nPose scripts are licensed under the GPLv2
@@ -30,6 +30,7 @@ string MENU_BUTTON_BACK = "^";
 string STRING_PROMPT_VICTIM_CAPTION = "Selected Victim: ";
 string STRING_PROMPT_VICTIM_NONE = "NONE";
 string STRING_PROMPT_VICTIM_SELECT = "Select new active victim.";
+string STRING_PROMPT_CAPTURE_CAPTION = "Choose someone to capture.";
 string STRING_PROMPT_RESTRICTIONS_CAPTION = "Active restrictions are: ";
 string STRING_PROMPT_RESTRICTIONS_NONE = "NONE. Victim may be FREE.";
 string STRING_PROMPT_RELAY_CAPTION = "RLV Relay: ";
@@ -223,7 +224,7 @@ displayMenu(key menuTarget,string basePath,string localPath,string additionalPro
     }
     else  if (menuName == MENU_CAPTURE) {
         if (!~llListFindList(VictimsList,[(string)menuTarget]) && RLV_grabRange > 0) {
-            renderMenu(menuTarget,basePath,localPath,STRING_PROMPT_VICTIM_SELECT,additionalButtons);
+            renderMenu(menuTarget,basePath,localPath,STRING_PROMPT_CAPTURE_CAPTION,additionalButtons);
         }
     }
     else  if (menuName == MENU_TIMER) {

@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Wed Apr 22 16:06:08 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Sat Apr 25 09:18:30 Mitteleuropäische Sommerzeit 2015
 
 string RLV_RELAY_API_COMMAND_RELEASE = "!release";
 string RLV_RELAY_API_COMMAND_VERSION = "!version";

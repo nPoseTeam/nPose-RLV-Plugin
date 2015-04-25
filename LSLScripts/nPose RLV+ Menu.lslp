@@ -42,6 +42,7 @@ string PLUGIN_NAME="RLV_RESTRICTIONS_MENU";
 string STRING_PROMPT_VICTIM_CAPTION="Selected Victim: ";
 string STRING_PROMPT_VICTIM_NONE="NONE";
 string STRING_PROMPT_VICTIM_SELECT="Select new active victim.";
+string STRING_PROMPT_CAPTURE_CAPTION="Choose someone to capture.";
 string STRING_PROMPT_RESTRICTIONS_CAPTION="Active restrictions are: ";
 string STRING_PROMPT_RESTRICTIONS_NONE="NONE. Victim may be FREE.";
 string STRING_PROMPT_RELAY_CAPTION="RLV Relay: ";
@@ -325,7 +326,7 @@ displayMenu(key menuTarget, string basePath, string localPath, string additional
 	}
 	else if(menuName==MENU_CAPTURE) {
 		if(isCaptureMenuAllowed(menuTarget)) {
-			renderMenu(menuTarget, basePath, localPath, STRING_PROMPT_VICTIM_SELECT, additionalButtons);
+			renderMenu(menuTarget, basePath, localPath, STRING_PROMPT_CAPTURE_CAPTION, additionalButtons);
 		}
 	}
 	else if(menuName==MENU_TIMER) {
