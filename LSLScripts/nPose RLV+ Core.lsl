@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Sat Apr 25 09:18:30 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Sun Apr 26 15:10:11 Mitteleuropäische Sommerzeit 2015
 
 string RLV_RELAY_API_COMMAND_RELEASE = "!release";
 string RLV_RELAY_API_COMMAND_VERSION = "!version";
@@ -397,8 +397,10 @@ default {
                             }
                         }
                     }
+                    else  {
+                        addToTrapIgnoreList(avatarWorkingOn);
+                    }
                     removeFromVictimsList(avatarWorkingOn);
-                    addToTrapIgnoreList(avatarWorkingOn);
                     index -= 3;
                     length -= 3;
                 }
@@ -476,20 +478,17 @@ default {
                 }
                 else  if (command == RLV_RELAY_API_COMMAND_RELEASE) {
                     if (reply == "ok") {
-                        if (~llListFindList(VictimsList,[senderAvatarId])) {
-                            addToFreeVictimsList(senderAvatarId);
-                        }
-                        removeFromVictimsList(senderAvatarId);
-                        integer _index5;
-                        while (~(_index5 = llListFindList(GrabList,[senderAvatarId]))) {
+                        addToFreeVictimsList(senderAvatarId);
+                        integer _index3;
+                        while (~(_index3 = llListFindList(GrabList,[senderAvatarId]))) {
                             {
-                                GrabList = llDeleteSubList(GrabList,_index5,_index5 + 2 - 1);
+                                GrabList = llDeleteSubList(GrabList,_index3,_index3 + 2 - 1);
                             }
                         }
-                        integer _index7;
-                        while (~(_index7 = llListFindList(RecaptureList,[senderAvatarId]))) {
+                        integer _index5;
+                        while (~(_index5 = llListFindList(RecaptureList,[senderAvatarId]))) {
                             {
-                                RecaptureList = llDeleteSubList(RecaptureList,_index7,_index7 + 3 - 1);
+                                RecaptureList = llDeleteSubList(RecaptureList,_index5,_index5 + 3 - 1);
                             }
                         }
                     }
@@ -500,14 +499,14 @@ default {
                         integer index = llListFindList(RecaptureList,[senderAvatarId]);
                         if (~index) {
                             if (FreeRlvEnabledSeats) {
-                                RecaptureList = llListReplaceList(RecaptureList,[llGetUnixTime() + 60],index,index + 3 - 1);
+                                RecaptureList = llListReplaceList(RecaptureList,[llGetUnixTime() + 60],index + 2,index + 2);
                                 llSay(-1812221819,RLV_RELAY_API_COMMAND_PING + "," + (string)senderAvatarId + "," + RLV_RELAY_API_COMMAND_PONG);
                             }
                             else  {
-                                integer _index11;
-                                while (~(_index11 = llListFindList(RecaptureList,[senderAvatarId]))) {
+                                integer _index9;
+                                while (~(_index9 = llListFindList(RecaptureList,[senderAvatarId]))) {
                                     {
-                                        RecaptureList = llDeleteSubList(RecaptureList,_index11,_index11 + 3 - 1);
+                                        RecaptureList = llDeleteSubList(RecaptureList,_index9,_index9 + 3 - 1);
                                     }
                                 }
                             }

@@ -584,8 +584,10 @@ default {
 						//this usually means, that the avator logged off
 						addToRecaptureList(avatarWorkingOn, llList2Integer(VictimsList, index + VICTIMS_LIST_TIMER) - llGetUnixTime());
 					}
+					else {
+						addToTrapIgnoreList(avatarWorkingOn);
+					}
 					removeFromVictimsList(avatarWorkingOn);
-					addToTrapIgnoreList(avatarWorkingOn);
 					index-=VICTIMS_LIST_STRIDE;
 					length-=VICTIMS_LIST_STRIDE;
 				}
@@ -669,10 +671,7 @@ default {
 				else if(command==RLV_RELAY_API_COMMAND_RELEASE) {
 					if(reply=="ok") {
 						//the relay cancels the active session (perhaps by safewording), set the victim free
-						if(~getVictimIndex(senderAvatarId)) {
-							addToFreeVictimsList(senderAvatarId);
-						}
-						removeFromVictimsList(senderAvatarId);
+						addToFreeVictimsList(senderAvatarId);
 						removeFromGrabList(senderAvatarId);
 						removeFromRecaptureList(senderAvatarId);
 					}
@@ -690,7 +689,7 @@ default {
 						if(~index) {
 							//we know him and we want him
 							if(FreeRlvEnabledSeats) {
-								RecaptureList=llListReplaceList(RecaptureList, [llGetUnixTime() + RLV_RELAY_ASK_TIMEOUT], index, index + RECAPTURE_LIST_STRIDE - 1);
+								RecaptureList=llListReplaceList(RecaptureList, [llGetUnixTime() + RLV_RELAY_ASK_TIMEOUT], index + RECAPTURE_LIST_TIMEOUT, index + RECAPTURE_LIST_TIMEOUT);
 								llSay(RLV_RELAY_CHANNEL, RLV_RELAY_API_COMMAND_PING + "," + (string)senderAvatarId + "," + RLV_RELAY_API_COMMAND_PONG);
 							}
 							else {
