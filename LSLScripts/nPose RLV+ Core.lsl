@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Sun Apr 26 15:10:11 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Fri May 15 09:45:12 Mitteleuropäische Sommerzeit 2015
 
 string RLV_RELAY_API_COMMAND_RELEASE = "!release";
 string RLV_RELAY_API_COMMAND_VERSION = "!version";
@@ -31,6 +31,8 @@ list TrapIgnoreList;
 
 integer FreeRlvEnabledSeats;
 integer FreeNonRlvEnabledSeats;
+
+list SlotList;
 
 
 // for RLV base restrictions and reading them from a notecard
@@ -67,6 +69,7 @@ removeFromTrapIgnoreList(key avatarUuid){
 }
 
 addToTrapIgnoreList(key avatarUuid){
+    removeFromAllLists(avatarUuid);
     TrapIgnoreList += [avatarUuid,llGetUnixTime() + 60];
 }
 
@@ -78,9 +81,7 @@ debug(list message){
 
 // NO pragma inline
 addToVictimsList(key avatarUuid,integer timerTime){
-    removeFromVictimsList(avatarUuid);
-    removeFromFreeVictimsList(avatarUuid);
-    removeFromDomList(avatarUuid);
+    removeFromAllLists(avatarUuid);
     if (timerTime > 0) {
         timerTime += llGetUnixTime();
     }
@@ -136,9 +137,7 @@ removeFromDomList(key avatarUuid){
 
 // NO pragma inline
 addToFreeVictimsList(key avatarUuid){
-    removeFromVictimsList(avatarUuid);
-    removeFromFreeVictimsList(avatarUuid);
-    removeFromDomList(avatarUuid);
+    removeFromAllLists(avatarUuid);
     FreeVictimsList += avatarUuid;
 }
 
@@ -163,6 +162,26 @@ recaptureListRemoveTimedOutEntrys(){
             length -= 3;
         }
     }
+}
+
+// NO pragma inline
+removeFromAllLists(key avatarUuid){
+    removeFromVictimsList(avatarUuid);
+    removeFromFreeVictimsList(avatarUuid);
+    removeFromDomList(avatarUuid);
+    integer index;
+    while (~(index = llListFindList(GrabList,[avatarUuid]))) {
+        {
+            GrabList = llDeleteSubList(GrabList,index,index + 2 - 1);
+        }
+    }
+    integer _index2;
+    while (~(_index2 = llListFindList(RecaptureList,[avatarUuid]))) {
+        {
+            RecaptureList = llDeleteSubList(RecaptureList,_index2,_index2 + 3 - 1);
+        }
+    }
+    removeFromTrapIgnoreList(avatarUuid);
 }
 
 // send rlv commands to the RLV relay, usable for common format (not ping)
@@ -202,12 +221,11 @@ grabAvatar(key targetKey){
     else  if (~llListFindList(DomList,[targetKey])) {
     }
     else  {
-        if (!~llListFindList(GrabList,[targetKey])) {
-            GrabList += [targetKey,llGetUnixTime() + 60];
-            while (llGetListLength(GrabList) > 6) {
-                {
-                    GrabList = llList2List(GrabList,2,-1);
-                }
+        removeFromAllLists(targetKey);
+        GrabList += [targetKey,llGetUnixTime() + 60];
+        while (llGetListLength(GrabList) > 6) {
+            {
+                GrabList = llList2List(GrabList,2,-1);
             }
         }
         sendToRlvRelay(targetKey,"@sit:" + (string)llGetKey() + "=force","");
@@ -242,18 +260,18 @@ default {
                 sendToRlvRelay(target,llDumpList2String(llParseStringKeepNulls(llList2String(params,0),["/"],[]),"|"),"");
             }
             else  if (cmd == "release") {
-                addToFreeVictimsList(target);
-                removeFromVictimsList(target);
+                if (~llListFindList(VictimsList,[target])) {
+                    addToFreeVictimsList(target);
+                }
                 sendToRlvRelay(target,RLV_RELAY_API_COMMAND_RELEASE,"");
             }
             else  if (cmd == "unsit") {
-                removeFromVictimsList(target);
-                addToFreeVictimsList(target);
-                sendToRlvRelay(target,"@unsit=y","");
-                llSleep(0.75);
-                sendToRlvRelay(target,"@unsit=force","");
-                llSleep(0.75);
+                if (~llListFindList(VictimsList,[target])) {
+                    addToFreeVictimsList(target);
+                }
                 sendToRlvRelay(target,RLV_RELAY_API_COMMAND_RELEASE,"");
+                llSleep(1.5);
+                llUnSit(target);
             }
             else  if (cmd == "settimer") {
                 setVictimTimer(target,(integer)llList2String(params,0));
@@ -287,11 +305,11 @@ default {
             trapIgnoreListRemoveTimedOutValues();
             FreeNonRlvEnabledSeats = 0;
             FreeRlvEnabledSeats = 0;
-            list slotsList = llParseStringKeepNulls(str,["^"],[]);
-            integer length = llGetListLength(slotsList);
+            SlotList = llParseStringKeepNulls(str,["^"],[]);
+            integer length = llGetListLength(SlotList);
             integer index;
             for (; index < length; index += 8) {
-                key avatarWorkingOn = (key)llList2String(slotsList,index + 4);
+                key avatarWorkingOn = (key)llList2String(SlotList,index + 4);
                 removeFromTrapIgnoreList(avatarWorkingOn);
                 integer seatNumber = index / 8 + 1;
                 integer isRlvEnabledSeat = ~llListFindList(RLV_enabledSeats,["*"]) || ~llListFindList(RLV_enabledSeats,[(string)seatNumber]);
@@ -321,9 +339,7 @@ default {
                         if (~llListFindList(VictimsList,[avatarWorkingOn]) || ~llListFindList(RecaptureList,[avatarWorkingOn])) {
                             sendToRlvRelay(avatarWorkingOn,RLV_RELAY_API_COMMAND_RELEASE,"");
                         }
-                        removeFromVictimsList(avatarWorkingOn);
-                        removeFromFreeVictimsList(avatarWorkingOn);
-                        removeFromDomList(avatarWorkingOn);
+                        removeFromAllLists(avatarWorkingOn);
                         DomList += [avatarWorkingOn];
                     }
                 }
@@ -335,60 +351,43 @@ default {
                         FreeNonRlvEnabledSeats++;
                     }
                 }
-                integer _index28;
-                while (~(_index28 = llListFindList(GrabList,[avatarWorkingOn]))) {
-                    {
-                        GrabList = llDeleteSubList(GrabList,_index28,_index28 + 2 - 1);
-                    }
-                }
-                integer _index30;
-                while (~(_index30 = llListFindList(RecaptureList,[avatarWorkingOn]))) {
-                    {
-                        RecaptureList = llDeleteSubList(RecaptureList,_index30,_index30 + 3 - 1);
-                    }
-                }
             }
-            length = llGetListLength(FreeVictimsList);
+            list tempList;
+            tempList = FreeVictimsList;
+            length = llGetListLength(tempList);
             index = 0;
             for (; index < length; index += 1) {
-                key avatarWorkingOn = llList2Key(FreeVictimsList,index);
-                if (!~llListFindList(slotsList,[(string)avatarWorkingOn])) {
-                    removeFromFreeVictimsList(avatarWorkingOn);
+                key avatarWorkingOn = llList2Key(tempList,index);
+                if (!~llListFindList(SlotList,[(string)avatarWorkingOn])) {
                     addToTrapIgnoreList(avatarWorkingOn);
                 }
             }
-            length = llGetListLength(DomList);
+            tempList = DomList;
+            length = llGetListLength(tempList);
             index = 0;
             for (; index < length; index += 1) {
-                key avatarWorkingOn = llList2Key(DomList,index);
-                if (!~llListFindList(slotsList,[(string)avatarWorkingOn])) {
-                    removeFromDomList(avatarWorkingOn);
+                key avatarWorkingOn = llList2Key(tempList,index);
+                if (!~llListFindList(SlotList,[(string)avatarWorkingOn])) {
                     addToTrapIgnoreList(avatarWorkingOn);
                 }
             }
-            length = llGetListLength(VictimsList);
+            tempList = VictimsList;
+            length = llGetListLength(tempList);
             index = 0;
             for (; index < length; index += 3) {
-                key avatarWorkingOn = llList2Key(VictimsList,index);
-                if (!~llListFindList(slotsList,[(string)avatarWorkingOn])) {
+                key avatarWorkingOn = llList2Key(tempList,index);
+                if (!~llListFindList(SlotList,[(string)avatarWorkingOn])) {
                     integer relayVersion;
-                    integer _index36 = llListFindList(VictimsList,[avatarWorkingOn]);
-                    if (~_index36) {
-                        relayVersion = llList2Integer(VictimsList,_index36 + 2);
+                    integer _index32 = llListFindList(VictimsList,[avatarWorkingOn]);
+                    if (~_index32) {
+                        relayVersion = llList2Integer(VictimsList,_index32 + 2);
                     }
                     if (relayVersion) {
-                        integer timerTime = llList2Integer(VictimsList,index + 1) - llGetUnixTime();
+                        integer timerTime = llList2Integer(tempList,index + 1) - llGetUnixTime();
+                        removeFromAllLists(avatarWorkingOn);
+                        recaptureListRemoveTimedOutEntrys();
                         if (timerTime < 0) {
                             timerTime = 0;
-                        }
-                        recaptureListRemoveTimedOutEntrys();
-                        integer _index38;
-                        while (~(_index38 = llListFindList(RecaptureList,[avatarWorkingOn]))) {
-                            {
-                                {
-                                    RecaptureList = llDeleteSubList(RecaptureList,_index38,_index38 + 3 - 1);
-                                }
-                            }
                         }
                         RecaptureList += [avatarWorkingOn,timerTime,0];
                         while (llGetListLength(RecaptureList) > 15) {
@@ -400,9 +399,6 @@ default {
                     else  {
                         addToTrapIgnoreList(avatarWorkingOn);
                     }
-                    removeFromVictimsList(avatarWorkingOn);
-                    index -= 3;
-                    length -= 3;
                 }
             }
         }
@@ -478,17 +474,19 @@ default {
                 }
                 else  if (command == RLV_RELAY_API_COMMAND_RELEASE) {
                     if (reply == "ok") {
-                        addToFreeVictimsList(senderAvatarId);
-                        integer _index3;
-                        while (~(_index3 = llListFindList(GrabList,[senderAvatarId]))) {
-                            {
-                                GrabList = llDeleteSubList(GrabList,_index3,_index3 + 2 - 1);
-                            }
+                        if (~llListFindList(VictimsList,[senderAvatarId])) {
+                            addToFreeVictimsList(senderAvatarId);
                         }
                         integer _index5;
-                        while (~(_index5 = llListFindList(RecaptureList,[senderAvatarId]))) {
+                        while (~(_index5 = llListFindList(GrabList,[senderAvatarId]))) {
                             {
-                                RecaptureList = llDeleteSubList(RecaptureList,_index5,_index5 + 3 - 1);
+                                GrabList = llDeleteSubList(GrabList,_index5,_index5 + 2 - 1);
+                            }
+                        }
+                        integer _index7;
+                        while (~(_index7 = llListFindList(RecaptureList,[senderAvatarId]))) {
+                            {
+                                RecaptureList = llDeleteSubList(RecaptureList,_index7,_index7 + 3 - 1);
                             }
                         }
                     }
@@ -503,10 +501,10 @@ default {
                                 llSay(-1812221819,RLV_RELAY_API_COMMAND_PING + "," + (string)senderAvatarId + "," + RLV_RELAY_API_COMMAND_PONG);
                             }
                             else  {
-                                integer _index9;
-                                while (~(_index9 = llListFindList(RecaptureList,[senderAvatarId]))) {
+                                integer _index11;
+                                while (~(_index11 = llListFindList(RecaptureList,[senderAvatarId]))) {
                                     {
-                                        RecaptureList = llDeleteSubList(RecaptureList,_index9,_index9 + 3 - 1);
+                                        RecaptureList = llDeleteSubList(RecaptureList,_index11,_index11 + 3 - 1);
                                     }
                                 }
                             }
@@ -535,12 +533,13 @@ default {
 
 	timer() {
         integer currentTime = llGetUnixTime();
-        integer length = llGetListLength(VictimsList);
+        list tempList = VictimsList;
+        integer length = llGetListLength(tempList);
         integer index;
         for (; index < length; index += 3) {
-            integer time = llList2Integer(VictimsList,index + 1);
+            integer time = llList2Integer(tempList,index + 1);
             if (time && time <= currentTime) {
-                key avatarWorkingOn = llList2Key(VictimsList,index);
+                key avatarWorkingOn = llList2Key(tempList,index);
                 sendToRlvRelay(avatarWorkingOn,RLV_RELAY_API_COMMAND_RELEASE,"");
                 addToFreeVictimsList(avatarWorkingOn);
             }

@@ -100,6 +100,8 @@ integer TRAP_IGNORE_LIST_STRIDE=2;
 integer FreeRlvEnabledSeats;
 integer FreeNonRlvEnabledSeats;
 
+list SlotList;
+
 
 // for RLV base restrictions and reading them from a notecard
 string RlvBaseRestrictions="@unsit=n|@sittp=n|@tploc=n|@tplure=n|@tplm=n|@acceptpermission=add|@editobj:%MYKEY%=add";
@@ -138,6 +140,7 @@ removeFromTrapIgnoreList(key avatarUuid) {
 }
 
 addToTrapIgnoreList(key avatarUuid) {
+	removeFromAllLists(avatarUuid);
 	TrapIgnoreList+=[avatarUuid, llGetUnixTime() + ACTIVE_TRAP_COOLDOWN_INTERVALL];
 }
 
@@ -177,9 +180,7 @@ integer getRecaptureIndex(key avatarUuid) {
 
 // NO pragma inline
 addToVictimsList(key avatarUuid, integer timerTime) {
-	removeFromVictimsList(avatarUuid);
-	removeFromFreeVictimsList(avatarUuid);
-	removeFromDomList(avatarUuid);
+	removeFromAllLists(avatarUuid);
 
 	if(timerTime>0) {
 		timerTime+=llGetUnixTime();
@@ -234,9 +235,7 @@ changeCurrentVictim(key newVictimKey) {
 
 // pragma inline
 addToDomList(key avatarUuid) {
-	removeFromVictimsList(avatarUuid);
-	removeFromFreeVictimsList(avatarUuid);
-	removeFromDomList(avatarUuid);
+	removeFromAllLists(avatarUuid);
 	DomList+=[avatarUuid];
 }
 
@@ -250,9 +249,7 @@ removeFromDomList(key avatarUuid) {
 
 // NO pragma inline
 addToFreeVictimsList(key avatarUuid) {
-	removeFromVictimsList(avatarUuid);
-	removeFromFreeVictimsList(avatarUuid);
-	removeFromDomList(avatarUuid);
+	removeFromAllLists(avatarUuid);
 	FreeVictimsList+=avatarUuid;
 }
 
@@ -266,11 +263,10 @@ removeFromFreeVictimsList(key avatarUuid) {
 
 // pragma inline
 addToGrabList(key avatarUuid) {
-	if(!~getGrabIndex(avatarUuid)) {
-		GrabList+=[avatarUuid, llGetUnixTime() + RLV_RELAY_ASK_TIMEOUT];
-		while (llGetListLength(GrabList) > GRAB_LIST_MAX_ENTRIES * GRAB_LIST_STRIDE) {
-			GrabList=llList2List(GrabList, GRAB_LIST_STRIDE, -1);
-		}
+	removeFromAllLists(avatarUuid);
+	GrabList+=[avatarUuid, llGetUnixTime() + RLV_RELAY_ASK_TIMEOUT];
+	while (llGetListLength(GrabList) > GRAB_LIST_MAX_ENTRIES * GRAB_LIST_STRIDE) {
+		GrabList=llList2List(GrabList, GRAB_LIST_STRIDE, -1);
 	}
 }
 
@@ -299,12 +295,11 @@ grabListRemoveTimedOutEntrys() {
 
 // pragma inline
 addToRecaptureList(key avatarUuid, integer timerTime) {
+	removeFromAllLists(avatarUuid);
+	recaptureListRemoveTimedOutEntrys();
 	if(timerTime<0) {
 		timerTime=0;
 	}
-	recaptureListRemoveTimedOutEntrys();
-	//slmember1: I don't have an idea how someone could get on the list twice, but to be sure that this will not happen ...
-	removeFromRecaptureList(avatarUuid);
 	RecaptureList+=[avatarUuid, timerTime, 0];
 	while (llGetListLength(RecaptureList) > RECAPTURE_LIST_MAX_ENTRIES * RECAPTURE_LIST_STRIDE) {
 		RecaptureList=llList2List(RecaptureList, RECAPTURE_LIST_STRIDE, -1);
@@ -332,6 +327,16 @@ recaptureListRemoveTimedOutEntrys() {
 			length-=RECAPTURE_LIST_STRIDE;
 		}
 	}
+}
+
+// NO pragma inline
+removeFromAllLists(key avatarUuid) {
+	removeFromVictimsList(avatarUuid);
+	removeFromFreeVictimsList(avatarUuid);
+	removeFromDomList(avatarUuid);
+	removeFromGrabList(avatarUuid);
+	removeFromRecaptureList(avatarUuid);
+	removeFromTrapIgnoreList(avatarUuid);
 }
 
 // send rlv commands to the RLV relay, usable for common format (not ping)
@@ -399,20 +404,17 @@ setVictimRelayVersion(key avatarUuid, integer relayVersion) {
 
 // pragma inline
 releaseAvatar(key targetKey) {
-	addToFreeVictimsList(targetKey);
-	removeFromVictimsList(targetKey);
+	if(~getVictimIndex(targetKey)) {
+		addToFreeVictimsList(targetKey);
+	}
 	sendToRlvRelay(targetKey, RLV_RELAY_API_COMMAND_RELEASE, "");
 }
 
 // pragma inline
 unsitAvatar(key targetKey) {
-	removeFromVictimsList(targetKey);
-	addToFreeVictimsList(targetKey);
-	sendToRlvRelay(targetKey, "@unsit=y", "");
-	llSleep(0.75);
-	sendToRlvRelay(targetKey, "@unsit=force", "");
-	llSleep(0.75);
-	sendToRlvRelay(targetKey, RLV_RELAY_API_COMMAND_RELEASE, "");
+	releaseAvatar(targetKey);
+	llSleep(1.5);
+	llUnSit(targetKey);
 }
 
 grabAvatar(key targetKey) {
@@ -494,11 +496,11 @@ default {
 			trapIgnoreListRemoveTimedOutValues();
 			FreeNonRlvEnabledSeats=0;
 			FreeRlvEnabledSeats=0;
-			list slotsList=llParseStringKeepNulls(str, ["^"], []);
-			integer length=llGetListLength(slotsList);
+			SlotList=llParseStringKeepNulls(str, ["^"], []);
+			integer length=llGetListLength(SlotList);
 			integer index;
 			for(; index<length; index+=8) {
-				key avatarWorkingOn=(key)llList2String(slotsList, index+4);
+				key avatarWorkingOn=(key)llList2String(SlotList, index+4);
 				removeFromTrapIgnoreList(avatarWorkingOn);
 				integer seatNumber=index/8+1;
 				integer isRlvEnabledSeat=~llListFindList(RLV_enabledSeats, ["*"]) || ~llListFindList(RLV_enabledSeats, [(string)seatNumber]);
@@ -548,48 +550,45 @@ default {
 						FreeNonRlvEnabledSeats++;
 					}
 				}
-				//Garbage Collection
-				removeFromGrabList(avatarWorkingOn);
-				removeFromRecaptureList(avatarWorkingOn);
 			}
+			
+			list tempList;
 			// If there is an Avatar in FreeVictim list but not sitting that means the Avatar just stand up
-			length=llGetListLength(FreeVictimsList);
+			tempList=FreeVictimsList;
+			length=llGetListLength(tempList);
 			index=0;
 			for(; index < length; index+=FREE_VICTIMS_LIST_STRIDE) {
-				key avatarWorkingOn=llList2Key(FreeVictimsList, index);
-				if(!~llListFindList(slotsList, [(string)avatarWorkingOn])) {
-					removeFromFreeVictimsList(avatarWorkingOn);
+				key avatarWorkingOn=llList2Key(tempList, index);
+				if(!~llListFindList(SlotList, [(string)avatarWorkingOn])) {
 					addToTrapIgnoreList(avatarWorkingOn);
 				}
 			}
 			// If there is an Avatar in Dom list but not sitting that means the Avatar just stand up
-			length=llGetListLength(DomList);
+			tempList=DomList;
+			length=llGetListLength(tempList);
 			index=0;
 			for(; index < length; index+=DOM_LIST_STRIDE) {
-				key avatarWorkingOn=llList2Key(DomList, index);
-				if(!~llListFindList(slotsList, [(string)avatarWorkingOn])) {
-					removeFromDomList(avatarWorkingOn);
+				key avatarWorkingOn=llList2Key(tempList, index);
+				if(!~llListFindList(SlotList, [(string)avatarWorkingOn])) {
 					addToTrapIgnoreList(avatarWorkingOn);
 				}
 			}
 
 			//If there is a Avatar in victims list but not sitting, this means he escaped
-			length=llGetListLength(VictimsList);
+			tempList=VictimsList;
+			length=llGetListLength(tempList);
 			index=0;
 			for(; index < length; index+=VICTIMS_LIST_STRIDE) {
-				key avatarWorkingOn=llList2Key(VictimsList, index);
-				if(!~llListFindList(slotsList, [(string)avatarWorkingOn])) {
+				key avatarWorkingOn=llList2Key(tempList, index);
+				if(!~llListFindList(SlotList, [(string)avatarWorkingOn])) {
 					if(getVictimRelayVersion(avatarWorkingOn)) {
 						//if the avatar had an active RLV Relay while he becomes a victim, we could try to recapture him in the future
 						//this usually means, that the avator logged off
-						addToRecaptureList(avatarWorkingOn, llList2Integer(VictimsList, index + VICTIMS_LIST_TIMER) - llGetUnixTime());
+						addToRecaptureList(avatarWorkingOn, llList2Integer(tempList, index + VICTIMS_LIST_TIMER) - llGetUnixTime());
 					}
 					else {
 						addToTrapIgnoreList(avatarWorkingOn);
 					}
-					removeFromVictimsList(avatarWorkingOn);
-					index-=VICTIMS_LIST_STRIDE;
-					length-=VICTIMS_LIST_STRIDE;
 				}
 			}
 		}
@@ -670,8 +669,13 @@ default {
 				}
 				else if(command==RLV_RELAY_API_COMMAND_RELEASE) {
 					if(reply=="ok") {
-						//the relay cancels the active session (perhaps by safewording), set the victim free
-						addToFreeVictimsList(senderAvatarId);
+						//this could be:
+						//a.) The answere to an !release message
+						//b.) A safeword attemp
+						if(~getVictimIndex(senderAvatarId)) {
+							//the relay cancels the active session (perhaps by safewording), set the victim free
+							addToFreeVictimsList(senderAvatarId);
+						}
 						removeFromGrabList(senderAvatarId);
 						removeFromRecaptureList(senderAvatarId);
 					}
@@ -725,12 +729,13 @@ default {
 
 	timer() {
 		integer currentTime=llGetUnixTime();
-		integer length=llGetListLength(VictimsList);
+		list tempList=VictimsList;
+		integer length=llGetListLength(tempList);
 		integer index;
 		for(; index<length; index+=VICTIMS_LIST_STRIDE) {
-			integer time=llList2Integer(VictimsList, index + VICTIMS_LIST_TIMER);
+			integer time=llList2Integer(tempList, index + VICTIMS_LIST_TIMER);
 			if(time && time<=currentTime) {
-				key avatarWorkingOn=llList2Key(VictimsList, index);
+				key avatarWorkingOn=llList2Key(tempList, index);
 				sendToRlvRelay(avatarWorkingOn, RLV_RELAY_API_COMMAND_RELEASE, "");
 				addToFreeVictimsList(avatarWorkingOn);
 			}
