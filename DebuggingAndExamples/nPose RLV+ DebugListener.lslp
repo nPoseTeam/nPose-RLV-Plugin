@@ -7,14 +7,18 @@ debug(list message) {
 default {
 	state_entry() {
 		llListen(0, "", llGetOwner(), "");
+		llListen(3, "", llGetOwner(), "");
 	}
 
 	link_message(integer sender_num, integer num, string str, key id) {
-		if(num==CHANGE_SELECTED_VICTIM) {
-			debug(["CHANGE_SELECTED_VICTIM", str]);
+		if(num==RLV_CHANGE_SELECTED_VICTIM) {
+			debug(["RLV_CHANGE_SELECTED_VICTIM", str]);
 		}
-		else if(num==UPDATE_VICTIMS_LIST) {
-			debug(["UPDATE_VICTIMS_LIST", str]);
+		else if(num==RLV_VICTIMS_LIST_UPDATE) {
+			debug(["RLV_VICTIMS_LIST_UPDATE", str]);
+		}
+		else if(num==USER_PERMISSION_UPDATE) {
+			debug(["USER_PERMISSION_UPDATE", str]);
 		}
 		else if(num==DOMENU) {
 			debug(["DOMENU", str, (string) id]);

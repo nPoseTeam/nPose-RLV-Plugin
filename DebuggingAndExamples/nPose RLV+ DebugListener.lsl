@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): DebuggingAndExamples.nPose RLV+ DebugListener.lslp Wed May 13 08:58:26 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): DebuggingAndExamples.nPose RLV+ DebugListener.lslp Fri Jun  5 16:05:02 Mitteleuropäische Sommerzeit 2015
 
 
 debug(list message){
@@ -9,15 +9,19 @@ default {
 
 	state_entry() {
         llListen(0,"",llGetOwner(),"");
+        llListen(3,"",llGetOwner(),"");
     }
 
 
 	link_message(integer sender_num,integer num,string str,key id) {
-        if (num == -237) {
-            debug(["CHANGE_SELECTED_VICTIM",str]);
+        if (num == -8012) {
+            debug(["RLV_CHANGE_SELECTED_VICTIM",str]);
         }
-        else  if (num == -238) {
-            debug(["UPDATE_VICTIMS_LIST",str]);
+        else  if (num == -8013) {
+            debug(["RLV_VICTIMS_LIST_UPDATE",str]);
+        }
+        else  if (num == -806) {
+            debug(["USER_PERMISSION_UPDATE",str]);
         }
         else  if (num == -800) {
             debug(["DOMENU",str,(string)id]);

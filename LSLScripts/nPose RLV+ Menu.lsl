@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu.lslp Wed May 13 08:58:26 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu.lslp Fri Jun  5 16:05:02 Mitteleuropäische Sommerzeit 2015
 //LICENSE:
 //
 //This script and the nPose scripts are licensed under the GPLv2
@@ -298,10 +298,10 @@ default {
     }
 
 	link_message(integer sender,integer num,string str,key id) {
-        if (num == -237) {
+        if (num == -8012) {
             VictimKey = (key)str;
         }
-        else  if (num == -238) {
+        else  if (num == -8013) {
             VictimsList = llCSV2List(str);
         }
         else  if (num == -8000) {
@@ -409,7 +409,7 @@ default {
                                 key avatarWorkingOn = llList2Key(VictimsList,index);
                                 if (llGetSubString(llKey2Name(avatarWorkingOn),0,15) == selection) {
                                     VictimKey = avatarWorkingOn;
-                                    llMessageLinked(-1,-237,(string)VictimKey,"");
+                                    llMessageLinked(-1,-8012,(string)VictimKey,"");
                                 }
                             }
                         }

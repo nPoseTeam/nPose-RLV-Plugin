@@ -477,10 +477,10 @@ default {
 		init();
 	}
 	link_message( integer sender, integer num, string str, key id ) {
-		if(num==CHANGE_SELECTED_VICTIM) {
+		if(num==RLV_CHANGE_SELECTED_VICTIM) {
 			VictimKey=(key)str;
 		}
-		else if(num==UPDATE_VICTIMS_LIST) {
+		else if(num==RLV_VICTIMS_LIST_UPDATE) {
 			VictimsList=llCSV2List(str);
 		}
 		else if(num==RLV_MENU_COMMAND) {
@@ -601,7 +601,7 @@ default {
 								key avatarWorkingOn=llList2Key( VictimsList, index);
 								if(llGetSubString(llKey2Name(avatarWorkingOn), 0, BUTTON_MAX_LENGHT - 1) == selection) {
 									VictimKey=avatarWorkingOn;
-									llMessageLinked(LINK_SET, CHANGE_SELECTED_VICTIM, (string)VictimKey, "");
+									llMessageLinked(LINK_SET, RLV_CHANGE_SELECTED_VICTIM, (string)VictimKey, "");
 								}
 							}
 						}

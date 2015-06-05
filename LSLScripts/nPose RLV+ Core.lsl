@@ -1,9 +1,11 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Fri May 15 09:45:12 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Fri Jun  5 16:05:02 Mitteleuropäische Sommerzeit 2015
 
 string RLV_RELAY_API_COMMAND_RELEASE = "!release";
 string RLV_RELAY_API_COMMAND_VERSION = "!version";
 string RLV_RELAY_API_COMMAND_PING = "ping";
 string RLV_RELAY_API_COMMAND_PONG = "!pong";
+string USER_PERMISSION_TYPE_LIST = "list";
+string USER_PERMISSION_VICTIM = "rlvVictim";
 
 // options
 integer RLV_trapTimer;
@@ -89,7 +91,8 @@ addToVictimsList(key avatarUuid,integer timerTime){
         timerTime = 0;
     }
     VictimsList += [avatarUuid,timerTime,0];
-    llMessageLinked(-1,-238,llList2CSV(VictimsList),"");
+    llMessageLinked(-1,-8013,llList2CSV(VictimsList),"");
+    llMessageLinked(-1,-806,llList2CSV([USER_PERMISSION_VICTIM,USER_PERMISSION_TYPE_LIST] + llList2ListStrided(VictimsList,0,-1,3)),"");
     sendToRlvRelay(avatarUuid,RLV_RELAY_API_COMMAND_VERSION + "|" + RlvBaseRestrictions,"");
     if (!TimerRunning) {
         llSetTimerEvent(1.0);
@@ -106,7 +109,8 @@ removeFromVictimsList(key avatarUuid){
         isChanged = 1;
     }
     if (isChanged) {
-        llMessageLinked(-1,-238,llList2CSV(VictimsList),"");
+        llMessageLinked(-1,-8013,llList2CSV(VictimsList),"");
+        llMessageLinked(-1,-806,llList2CSV([USER_PERMISSION_VICTIM,USER_PERMISSION_TYPE_LIST] + llList2ListStrided(VictimsList,0,-1,3)),"");
         if (VictimKey == avatarUuid) {
             changeCurrentVictim(NULL_KEY);
         }
@@ -122,7 +126,7 @@ changeCurrentVictim(key newVictimKey){
     if (newVictimKey != VictimKey) {
         if (newVictimKey == NULL_KEY || ~llListFindList(VictimsList,[newVictimKey])) {
             VictimKey = newVictimKey;
-            llMessageLinked(-1,-237,(string)VictimKey,"");
+            llMessageLinked(-1,-8012,(string)VictimKey,"");
         }
     }
 }
@@ -205,7 +209,7 @@ setVictimTimer(key avatarUuid,integer time){
     integer index = llListFindList(VictimsList,[avatarUuid]);
     if (~index) {
         VictimsList = llListReplaceList(VictimsList,[time],index + 1,index + 1);
-        llMessageLinked(-1,-238,llList2CSV(VictimsList),"");
+        llMessageLinked(-1,-8013,llList2CSV(VictimsList),"");
     }
 }
 
@@ -242,7 +246,7 @@ default {
 
 
 	link_message(integer sender,integer num,string str,key id) {
-        if (num == -237) {
+        if (num == -8012) {
             changeCurrentVictim((key)str);
         }
         else  if (num == -8010) {
@@ -469,7 +473,7 @@ default {
                     integer _index1 = llListFindList(VictimsList,[senderAvatarId]);
                     if (~_index1) {
                         VictimsList = llListReplaceList(VictimsList,[(integer)reply],_index1 + 2,_index1 + 2);
-                        llMessageLinked(-1,-238,llList2CSV(VictimsList),"");
+                        llMessageLinked(-1,-8013,llList2CSV(VictimsList),"");
                     }
                 }
                 else  if (command == RLV_RELAY_API_COMMAND_RELEASE) {

@@ -178,6 +178,22 @@ integer getRecaptureIndex(key avatarUuid) {
 	return llListFindList(RecaptureList, [avatarUuid]);
 }
 
+//pragma inline
+sendUserPermissionUpdate() {
+	llMessageLinked(
+		LINK_SET,
+		RLV_VICTIMS_LIST_UPDATE,
+		llList2CSV(VictimsList),
+		""
+	);
+	llMessageLinked(
+		LINK_SET,
+		USER_PERMISSION_UPDATE,
+		llList2CSV([USER_PERMISSION_VICTIM, USER_PERMISSION_TYPE_LIST] + llList2ListStrided(VictimsList, 0, -1, VICTIMS_LIST_STRIDE)),
+		""
+	);
+}
+
 // NO pragma inline
 addToVictimsList(key avatarUuid, integer timerTime) {
 	removeFromAllLists(avatarUuid);
@@ -189,8 +205,7 @@ addToVictimsList(key avatarUuid, integer timerTime) {
 		timerTime=0;
 	}
 	VictimsList+=[avatarUuid, timerTime, 0];
-	llMessageLinked(LINK_SET, UPDATE_VICTIMS_LIST, llList2CSV(VictimsList), "");
-//	llMessageLinked(LINK_SET, RLV_VICTIM_ADDED, (string)avatarUuid, "");
+	sendUserPermissionUpdate();
 	//do Relay check and apply restrictions
 	sendToRlvRelay(avatarUuid, RLV_RELAY_API_COMMAND_VERSION + "|" + RlvBaseRestrictions, "");
 	//the timer should be running if there is a victim in the list
@@ -210,7 +225,7 @@ removeFromVictimsList(key avatarUuid) {
 		isChanged=TRUE;
 	}
 	if(isChanged) {
-		llMessageLinked(LINK_SET, UPDATE_VICTIMS_LIST, llList2CSV(VictimsList), "");
+		sendUserPermissionUpdate();
 		if(VictimKey==avatarUuid) {
 			changeCurrentVictim(NULL_KEY);
 		}
@@ -228,7 +243,7 @@ changeCurrentVictim(key newVictimKey) {
 		if(newVictimKey==NULL_KEY || ~getVictimIndex(newVictimKey)) {
 			//this is a valid key
 			VictimKey=newVictimKey;
-			llMessageLinked( LINK_SET, CHANGE_SELECTED_VICTIM, (string)VictimKey, "" );
+			llMessageLinked( LINK_SET, RLV_CHANGE_SELECTED_VICTIM, (string)VictimKey, "" );
 		}
 	}
 }
@@ -358,7 +373,7 @@ setVictimTimer(key avatarUuid, integer time) {
 	integer index=getVictimIndex(avatarUuid);
 	if(~index) {
 		VictimsList=llListReplaceList(VictimsList, [time], index + VICTIMS_LIST_TIMER, index + VICTIMS_LIST_TIMER);
-		llMessageLinked(LINK_SET, UPDATE_VICTIMS_LIST, llList2CSV(VictimsList), "");
+		llMessageLinked(LINK_SET, RLV_VICTIMS_LIST_UPDATE, llList2CSV(VictimsList), "");
 	}
 }
 
@@ -398,7 +413,7 @@ setVictimRelayVersion(key avatarUuid, integer relayVersion) {
 	integer index=getVictimIndex(avatarUuid);
 	if(~index) {
 		VictimsList=llListReplaceList(VictimsList, [relayVersion], index + VICTIMS_LIST_RELAY, index + VICTIMS_LIST_RELAY);
-		llMessageLinked(LINK_SET, UPDATE_VICTIMS_LIST, llList2CSV(VictimsList), "");
+		llMessageLinked(LINK_SET, RLV_VICTIMS_LIST_UPDATE, llList2CSV(VictimsList), "");
 	}
 }
 
@@ -450,7 +465,7 @@ default {
 	link_message( integer sender, integer num, string str, key id ) {
 		// messages comming in from BTN notecard commands
 		// or other scripts linkMessages
-		if(num==CHANGE_SELECTED_VICTIM) {
+		if(num==RLV_CHANGE_SELECTED_VICTIM) {
 			changeCurrentVictim((key)str);
 		}
 		else if(num==RLV_CORE_COMMAND) {

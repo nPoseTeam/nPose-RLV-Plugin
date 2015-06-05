@@ -2,13 +2,14 @@ $module ()
 
 //LinkMessages
 integer DOMENU                 = -800; // dialog control back to npose
+integer USER_PERMISSION_UPDATE = -806; // to register a user defined permission
 integer DIALOG                 = -900; // start dialog
 integer DIALOG_RESPONSE        = -901; // eval dialog response
 
-integer CHANGE_SELECTED_VICTIM = -237;
-integer UPDATE_VICTIMS_LIST    = -238; // this is used by nPose menu to maintain the VictimsList
-integer RLV_MENU_COMMAND       = -8000; //send commands to the RLV MENU
-integer RLV_CORE_COMMAND       = -8010; //send commands to the RLV CORE
+integer RLV_MENU_COMMAND           = -8000; //send commands to the RLV MENU
+integer RLV_CORE_COMMAND           = -8010; //send commands to the RLV CORE
+integer RLV_CHANGE_SELECTED_VICTIM = -8012; //can be used to change the current victim. The new current victim has to be in the victims list
+integer RLV_VICTIMS_LIST_UPDATE    = -8013; //for internal use 
 
 integer RLV_MENU_DUMP_DEBUG_STRING = -8008; //TODO: remove this
 integer RLV_CORE_DUMP_DEBUG_STRING = -8018; //TODO: remove this
@@ -30,8 +31,14 @@ string RLV_RELAY_API_COMMAND_VERSION="!version";
 string RLV_RELAY_API_COMMAND_PING="ping";
 string RLV_RELAY_API_COMMAND_PONG="!pong";
 
+//user defined Permissions
+string USER_PERMISSION_TYPE_LIST="list";
+string USER_PERMISSION_TYPE_BOOL="bool";
+string USER_PERMISSION_VICTIM="rlvVictim";
+
 //other
 string STRING_NEW_LINE="\n";
 string PATH_SEPARATOR=":";
 integer BUTTON_MAX_LENGHT=16;
 string MENU_BUTTON_BACK ="^";
+
