@@ -53,6 +53,7 @@ integer ACTIVE_TRAP_COOLDOWN_INTERVALL=60;
 // options
 integer RLV_trapTimer; //time in seconds, 0: disable the automatic timer start
 integer RLV_grabTimer; //time in seconds, 0: disable the automatic timer start
+integer RLV_collisionTrap; //0: disabbled, 1:enabled
 list RLV_enabledSeats=["*"];
 
 //handles
@@ -102,10 +103,8 @@ integer FreeNonRlvEnabledSeats;
 
 list SlotList;
 
-
 // for RLV base restrictions and reading them from a notecard
 string RlvBaseRestrictions="@unsit=n|@sittp=n|@tploc=n|@tplure=n|@tplm=n|@acceptpermission=add|@editobj:%MYKEY%=add";
-key NcQueryId;
 
 //added for timer
 integer TimerRunning;
@@ -189,7 +188,7 @@ sendUserPermissionUpdate() {
 	llMessageLinked(
 		LINK_SET,
 		USER_PERMISSION_UPDATE,
-		llList2CSV([USER_PERMISSION_VICTIM, USER_PERMISSION_TYPE_LIST] + llList2ListStrided(VictimsList, 0, -1, VICTIMS_LIST_STRIDE)),
+		llList2CSV([USER_PERMISSION_VICTIM, USER_PERMISSION_TYPE_LIST, llDumpList2String(llList2ListStrided(VictimsList, 0, -1, VICTIMS_LIST_STRIDE), "|")]),
 		""
 	);
 }
@@ -494,14 +493,16 @@ default {
 			else if(cmd=="grab") {
 				grabAvatar(target);
 			}
-			else if(cmd == "read") {
-				string rlvRestrictionsNotecard=llList2String(params, 0);
-				if(llGetInventoryType(rlvRestrictionsNotecard )==INVENTORY_NOTECARD) {
-					NcQueryId=llGetNotecardLine(rlvRestrictionsNotecard, 0);
-				}
-				else {
-					llWhisper( 0, "Error: rlvRestrictions Notecard " + rlvRestrictionsNotecard + " not found" );
-				}
+			else if(cmd=="read") {
+				llMessageLinked(LINK_SET, NC_READER_REQUEST, llList2String(params, 0), MyUniqueId);
+			}
+		}
+		
+		else if(num==NC_READER_RESPONSE) {
+			if(id==MyUniqueId) {
+				//stript the first 3 values
+				str=llDumpList2String(llList2List(llParseStringKeepNulls(str, [NC_READER_CONTENT_SEPARATOR], []), 3, -1), "");
+				RlvBaseRestrictions = stringReplace( str, "/", "|" );
 			}
 		}
 
@@ -632,6 +633,9 @@ default {
 				else if (optionItem == "rlv_enabledseats") {
 					RLV_enabledSeats = llParseString2List(optionSetting, ["/"], []);
 				}
+				else if (optionItem == "rlv_collisiontrap") {
+					RLV_collisionTrap=(integer) optionSetting;
+				}
 			}
 		}
 		else if( num == MEM_USAGE ) {
@@ -652,7 +656,7 @@ default {
 			}
 			else if(str=="o") {
 				debug(
-					  ["RLV_trapTimer", RLV_trapTimer, "####", "RLV_grabTimer", RLV_grabTimer, "####", "RLV_enabledSeats"] + RLV_enabledSeats
+					  ["RLV_trapTimer", RLV_trapTimer, "####", "RLV_grabTimer", RLV_grabTimer, "####", "RLV_collisionTrap", RLV_collisionTrap, "####", "RLV_enabledSeats"] + RLV_enabledSeats
 				);
 			} 
 		}
@@ -661,12 +665,6 @@ default {
 	changed( integer change ) {
 		if( change & CHANGED_OWNER ) {
 			llResetScript();
-		}
-	}
-
-	dataserver( key id, string data ) {
-		if( id == NcQueryId ) {
-			RlvBaseRestrictions = stringReplace( data, "/", "|" );
 		}
 	}
 
@@ -721,6 +719,24 @@ default {
 		}
 	} // listen
 	
+	collision_start(integer num_detected) {
+		if(RLV_collisionTrap && FreeRlvEnabledSeats) {
+			trapIgnoreListRemoveTimedOutValues();
+			key avatarWorkingOn=llDetectedKey(0);
+			if(
+				   !~getVictimIndex(avatarWorkingOn)
+				&& !~getFreeVictimIndex(avatarWorkingOn)
+				&& !~getDomIndex(avatarWorkingOn)
+				&& !~getGrabIndex(avatarWorkingOn)
+				&& !~getRecaptureIndex(avatarWorkingOn)
+				&& !~getTrapIgnoreIndex(avatarWorkingOn)
+			) {
+				sendToRlvRelay(avatarWorkingOn, "@sit:" + (string)llGetKey() + "=force", "");
+				addToTrapIgnoreList(avatarWorkingOn);
+			}
+		}
+	}
+	
 	sensor(integer num_detected) {
 		if(FreeRlvEnabledSeats) {
 			trapIgnoreListRemoveTimedOutValues();
@@ -737,6 +753,7 @@ default {
 				) {
 					sendToRlvRelay(avatarWorkingOn, "@sit:" + (string)llGetKey() + "=force", "");
 					addToTrapIgnoreList(avatarWorkingOn);
+					return; //only get one Avatar per cycle
 				}
 			}
 		}

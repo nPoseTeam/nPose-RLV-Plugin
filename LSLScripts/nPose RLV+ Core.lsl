@@ -1,15 +1,17 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Fri Jun  5 16:05:02 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Tue Jul 28 13:37:46 Mitteleuropäische Sommerzeit 2015
 
 string RLV_RELAY_API_COMMAND_RELEASE = "!release";
 string RLV_RELAY_API_COMMAND_VERSION = "!version";
 string RLV_RELAY_API_COMMAND_PING = "ping";
 string RLV_RELAY_API_COMMAND_PONG = "!pong";
 string USER_PERMISSION_TYPE_LIST = "list";
-string USER_PERMISSION_VICTIM = "rlvVictim";
+string USER_PERMISSION_VICTIM = "victim";
+string NC_READER_CONTENT_SEPARATOR = "%&§";
 
 // options
 integer RLV_trapTimer;
 integer RLV_grabTimer;
+integer RLV_collisionTrap;
 list RLV_enabledSeats = ["*"];
 
 key MyUniqueId;
@@ -36,10 +38,8 @@ integer FreeNonRlvEnabledSeats;
 
 list SlotList;
 
-
 // for RLV base restrictions and reading them from a notecard
 string RlvBaseRestrictions = "@unsit=n|@sittp=n|@tploc=n|@tplure=n|@tplm=n|@acceptpermission=add|@editobj:%MYKEY%=add";
-key NcQueryId;
 
 //added for timer
 integer TimerRunning;
@@ -92,7 +92,7 @@ addToVictimsList(key avatarUuid,integer timerTime){
     }
     VictimsList += [avatarUuid,timerTime,0];
     llMessageLinked(-1,-8013,llList2CSV(VictimsList),"");
-    llMessageLinked(-1,-806,llList2CSV([USER_PERMISSION_VICTIM,USER_PERMISSION_TYPE_LIST] + llList2ListStrided(VictimsList,0,-1,3)),"");
+    llMessageLinked(-1,-806,llList2CSV([USER_PERMISSION_VICTIM,USER_PERMISSION_TYPE_LIST,llDumpList2String(llList2ListStrided(VictimsList,0,-1,3),"|")]),"");
     sendToRlvRelay(avatarUuid,RLV_RELAY_API_COMMAND_VERSION + "|" + RlvBaseRestrictions,"");
     if (!TimerRunning) {
         llSetTimerEvent(1.0);
@@ -110,7 +110,7 @@ removeFromVictimsList(key avatarUuid){
     }
     if (isChanged) {
         llMessageLinked(-1,-8013,llList2CSV(VictimsList),"");
-        llMessageLinked(-1,-806,llList2CSV([USER_PERMISSION_VICTIM,USER_PERMISSION_TYPE_LIST] + llList2ListStrided(VictimsList,0,-1,3)),"");
+        llMessageLinked(-1,-806,llList2CSV([USER_PERMISSION_VICTIM,USER_PERMISSION_TYPE_LIST,llDumpList2String(llList2ListStrided(VictimsList,0,-1,3),"|")]),"");
         if (VictimKey == avatarUuid) {
             changeCurrentVictim(NULL_KEY);
         }
@@ -284,26 +284,26 @@ default {
                 grabAvatar(target);
             }
             else  if (cmd == "read") {
-                string rlvRestrictionsNotecard = llList2String(params,0);
-                if (llGetInventoryType(rlvRestrictionsNotecard) == 7) {
-                    NcQueryId = llGetNotecardLine(rlvRestrictionsNotecard,0);
-                }
-                else  {
-                    llWhisper(0,"Error: rlvRestrictions Notecard " + rlvRestrictionsNotecard + " not found");
-                }
+                llMessageLinked(-1,224,llList2String(params,0),MyUniqueId);
+            }
+        }
+        else  if (num == 225) {
+            if (id == MyUniqueId) {
+                str = llDumpList2String(llList2List(llParseStringKeepNulls(str,[NC_READER_CONTENT_SEPARATOR],[]),3,-1),"");
+                RlvBaseRestrictions = llDumpList2String(llParseStringKeepNulls(str,["/"],[]),"|");
             }
         }
         else  if (num == 35353) {
             recaptureListRemoveTimedOutEntrys();
             integer currentTime = llGetUnixTime();
-            integer _length7 = llGetListLength(GrabList);
-            integer _index8;
-            for (; _index8 < _length7; _index8 += 2) {
-                integer timeout = llList2Integer(GrabList,_index8 + 1);
+            integer _length9 = llGetListLength(GrabList);
+            integer _index10;
+            for (; _index10 < _length9; _index10 += 2) {
+                integer timeout = llList2Integer(GrabList,_index10 + 1);
                 if (timeout < currentTime) {
-                    GrabList = llDeleteSubList(GrabList,_index8,_index8 + 2 - 1);
-                    _index8 -= 2;
-                    _length7 -= 2;
+                    GrabList = llDeleteSubList(GrabList,_index10,_index10 + 2 - 1);
+                    _index10 -= 2;
+                    _length9 -= 2;
                 }
             }
             trapIgnoreListRemoveTimedOutValues();
@@ -382,9 +382,9 @@ default {
                 key avatarWorkingOn = llList2Key(tempList,index);
                 if (!~llListFindList(SlotList,[(string)avatarWorkingOn])) {
                     integer relayVersion;
-                    integer _index32 = llListFindList(VictimsList,[avatarWorkingOn]);
-                    if (~_index32) {
-                        relayVersion = llList2Integer(VictimsList,_index32 + 2);
+                    integer _index34 = llListFindList(VictimsList,[avatarWorkingOn]);
+                    if (~_index34) {
+                        relayVersion = llList2Integer(VictimsList,_index34 + 2);
                     }
                     if (relayVersion) {
                         integer timerTime = llList2Integer(tempList,index + 1) - llGetUnixTime();
@@ -431,6 +431,9 @@ default {
                 else  if (optionItem == "rlv_enabledseats") {
                     RLV_enabledSeats = llParseString2List(optionSetting,["/"],[]);
                 }
+                else  if (optionItem == "rlv_collisiontrap") {
+                    RLV_collisionTrap = (integer)optionSetting;
+                }
             }
         }
         else  if (num == 34334) {
@@ -441,7 +444,7 @@ default {
                 debug(["VictimsList"] + VictimsList + ["####","FreeVictimsList"] + FreeVictimsList + ["####","DomList"] + DomList + ["####","GrabList"] + GrabList + ["####","RecaptureList"] + RecaptureList + ["####","TrapIgnoreList"] + TrapIgnoreList);
             }
             else  if (str == "o") {
-                debug(["RLV_trapTimer",RLV_trapTimer,"####","RLV_grabTimer",RLV_grabTimer,"####","RLV_enabledSeats"] + RLV_enabledSeats);
+                debug(["RLV_trapTimer",RLV_trapTimer,"####","RLV_grabTimer",RLV_grabTimer,"####","RLV_collisionTrap",RLV_collisionTrap,"####","RLV_enabledSeats"] + RLV_enabledSeats);
             }
         }
     }
@@ -450,13 +453,6 @@ default {
 	changed(integer change) {
         if (change & 128) {
             llResetScript();
-        }
-    }
-
-
-	dataserver(key id,string data) {
-        if (id == NcQueryId) {
-            RlvBaseRestrictions = llDumpList2String(llParseStringKeepNulls(data,["/"],[]),"|");
         }
     }
 
@@ -520,6 +516,18 @@ default {
     }
 
 	
+	collision_start(integer num_detected) {
+        if (RLV_collisionTrap && FreeRlvEnabledSeats) {
+            trapIgnoreListRemoveTimedOutValues();
+            key avatarWorkingOn = llDetectedKey(0);
+            if (!~llListFindList(VictimsList,[avatarWorkingOn]) && !~llListFindList(FreeVictimsList,[avatarWorkingOn]) && !~llListFindList(DomList,[avatarWorkingOn]) && !~llListFindList(GrabList,[avatarWorkingOn]) && !~llListFindList(RecaptureList,[avatarWorkingOn]) && !~getTrapIgnoreIndex(avatarWorkingOn)) {
+                sendToRlvRelay(avatarWorkingOn,"@sit:" + (string)llGetKey() + "=force","");
+                addToTrapIgnoreList(avatarWorkingOn);
+            }
+        }
+    }
+
+	
 	sensor(integer num_detected) {
         if (FreeRlvEnabledSeats) {
             trapIgnoreListRemoveTimedOutValues();
@@ -529,6 +537,7 @@ default {
                 if (!~llListFindList(VictimsList,[avatarWorkingOn]) && !~llListFindList(FreeVictimsList,[avatarWorkingOn]) && !~llListFindList(DomList,[avatarWorkingOn]) && !~llListFindList(GrabList,[avatarWorkingOn]) && !~llListFindList(RecaptureList,[avatarWorkingOn]) && !~getTrapIgnoreIndex(avatarWorkingOn)) {
                     sendToRlvRelay(avatarWorkingOn,"@sit:" + (string)llGetKey() + "=force","");
                     addToTrapIgnoreList(avatarWorkingOn);
+                    return;
                 }
             }
         }

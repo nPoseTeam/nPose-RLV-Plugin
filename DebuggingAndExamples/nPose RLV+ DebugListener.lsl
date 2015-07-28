@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): DebuggingAndExamples.nPose RLV+ DebugListener.lslp Fri Jun  5 16:05:02 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): DebuggingAndExamples.nPose RLV+ DebugListener.lslp Tue Jul 28 14:45:21 Mitteleuropäische Sommerzeit 2015
 
 
 debug(list message){
@@ -46,6 +46,12 @@ default {
         }
         else  if (num == 35353) {
             debug(["SEAT_UPDATE",str]);
+        }
+        else  if (num == 224) {
+            debug(["NC_READER_REQUEST",str,(string)id]);
+        }
+        else  if (num == 225) {
+            debug(["NC_READER_RESPONSE",str,(string)id]);
         }
     }
 

@@ -14,6 +14,9 @@ integer RLV_VICTIMS_LIST_UPDATE    = -8013; //for internal use
 integer RLV_MENU_DUMP_DEBUG_STRING = -8008; //TODO: remove this
 integer RLV_CORE_DUMP_DEBUG_STRING = -8018; //TODO: remove this
 
+integer NC_READER_REQUEST  = 224;
+integer NC_READER_RESPONSE = 225;
+
 integer OPTIONS              = -240;
 integer MEM_USAGE            = 34334;
 integer SEAT_UPDATE          = 35353;
@@ -34,7 +37,10 @@ string RLV_RELAY_API_COMMAND_PONG="!pong";
 //user defined Permissions
 string USER_PERMISSION_TYPE_LIST="list";
 string USER_PERMISSION_TYPE_BOOL="bool";
-string USER_PERMISSION_VICTIM="rlvVictim";
+string USER_PERMISSION_VICTIM="victim";
+
+//NC Reader
+string NC_READER_CONTENT_SEPARATOR="%&§";
 
 //other
 string STRING_NEW_LINE="\n";

@@ -44,6 +44,12 @@ default {
 		else if(num==SEAT_UPDATE) {
 			debug(["SEAT_UPDATE", str]);
 		}
+		else if(num==NC_READER_REQUEST) {
+			debug(["NC_READER_REQUEST", str, (string) id]);
+		}
+		else if(num==NC_READER_RESPONSE) {
+			debug(["NC_READER_RESPONSE", str, (string) id]);
+		}
 	}
 	listen(integer channel, string name, key id, string message) {
 		integer num;
