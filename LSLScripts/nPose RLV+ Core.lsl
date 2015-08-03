@@ -1,12 +1,12 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Tue Jul 28 13:37:46 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Core.lslp Mon Aug  3 12:28:59 Mitteleuropäische Sommerzeit 2015
 
+string NC_READER_CONTENT_SEPARATOR = "%&§";
 string RLV_RELAY_API_COMMAND_RELEASE = "!release";
 string RLV_RELAY_API_COMMAND_VERSION = "!version";
 string RLV_RELAY_API_COMMAND_PING = "ping";
 string RLV_RELAY_API_COMMAND_PONG = "!pong";
 string USER_PERMISSION_TYPE_LIST = "list";
 string USER_PERMISSION_VICTIM = "victim";
-string NC_READER_CONTENT_SEPARATOR = "%&§";
 
 // options
 integer RLV_trapTimer;
@@ -14,12 +14,13 @@ integer RLV_grabTimer;
 integer RLV_collisionTrap;
 list RLV_enabledSeats = ["*"];
 
+//other
 key MyUniqueId;
 
 key VictimKey = NULL_KEY;
-//integer currentVictimIndex=-1; //contains the VictimsList-index of the current victim
 
-//a sitting avatar is either in the VvictimsList or in the FreeVictimsList or in the DomList
+//lists
+//a sitting avatar is either in the VictimsList or in the FreeVictimsList or in the DomList
 
 list VictimsList;
 
@@ -43,6 +44,8 @@ string RlvBaseRestrictions = "@unsit=n|@sittp=n|@tploc=n|@tplure=n|@tplm=n|@acce
 
 //added for timer
 integer TimerRunning;
+
+
 
 // --- functions
 integer getTrapIgnoreIndex(key avatarUuid){
@@ -517,9 +520,9 @@ default {
 
 	
 	collision_start(integer num_detected) {
-        if (RLV_collisionTrap && FreeRlvEnabledSeats) {
+        key avatarWorkingOn = llDetectedKey(0);
+        if (RLV_collisionTrap && FreeRlvEnabledSeats && llGetAgentSize(avatarWorkingOn) != ZERO_VECTOR) {
             trapIgnoreListRemoveTimedOutValues();
-            key avatarWorkingOn = llDetectedKey(0);
             if (!~llListFindList(VictimsList,[avatarWorkingOn]) && !~llListFindList(FreeVictimsList,[avatarWorkingOn]) && !~llListFindList(DomList,[avatarWorkingOn]) && !~llListFindList(GrabList,[avatarWorkingOn]) && !~llListFindList(RecaptureList,[avatarWorkingOn]) && !~getTrapIgnoreIndex(avatarWorkingOn)) {
                 sendToRlvRelay(avatarWorkingOn,"@sit:" + (string)llGetKey() + "=force","");
                 addToTrapIgnoreList(avatarWorkingOn);

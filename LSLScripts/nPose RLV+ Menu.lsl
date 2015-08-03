@@ -1,4 +1,4 @@
-// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu.lslp Tue Jul 28 09:57:05 Mitteleuropäische Sommerzeit 2015
+// LSL script generated - patched Render.hs (0.1.6.2): LSLScripts.nPose RLV+ Menu.lslp Mon Aug  3 12:06:05 Mitteleuropäische Sommerzeit 2015
 //LICENSE:
 //
 //This script and the nPose scripts are licensed under the GPLv2

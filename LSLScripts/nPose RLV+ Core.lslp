@@ -1,48 +1,22 @@
 $import LSLScripts.constantsRlvPlugin.lslm ();
 
-//LICENSE:
+// Theese scripts are licensed under the GPLv2 (http://www.gnu.org/licenses/gpl-2.0.txt),
+// with the following addendum:
 //
-//This script and the nPose scripts are licensed under the GPLv2
-//(http://www.gnu.org/licenses/gpl-2.0.txt), with the following addendum:
+// These scripts are free to be copied, modified, and redistributed, subject to the following conditions:
+// - If you distribute these scripts, you must leave them full perms.
+// - If you modify these scripts and distribute the modifications, you must also make your modifications full perms.
 //
-//The nPose scripts are free to be copied, modified, and redistributed, subject
-//to the following conditions:
-//    - If you distribute the nPose scripts, you must leave them full perms.
-//    - If you modify the nPose scripts and distribute the modifications, you
-//      must also make your modifications full perms.
+// "Full perms" means having the modify, copy, and transfer permissions enabled in Second Life 
+// and/or other virtual world platforms derived from Second Life (such as OpenSim).
+// If the platform should allow more fine-grained permissions, then "full perms" will mean
+// the most permissive possible set of permissions allowed by the platform.
 //
-//"Full perms" means having the modify, copy, and transfer permissions enabled in
-//Second Life and/or other virtual world platforms derived from Second Life (such
-//as OpenSim).  If the platform should allow more fine-grained permissions, then
-//"full perms" will mean the most permissive possible set of permissions allowed
-//by the platform.
-//
-// USAGE
-// put this script into an object together with at least the following npose scripts:
-// - nPose Core
-// - nPose Dialog
-// - nPose menu
-// - nPose Slave
-// - nPose RLV+ MENU
-// 
-// Add a NC called "BTN:-RLV-" with the following content:
-// LINKMSG|-8000|showmenu,%AVKEY%
-// 
-// Done.
-// 
 // Documentation:
 // https://github.com/LeonaMorro/nPose-RLV-Plugin/wiki
 // Report Bugs to:
 // https://github.com/LeonaMorro/nPose-RLV-Plugin/issues
 // or IM slmember1 Resident (Leona)
-
-/*
-linkMessage Numbers from -8000 to -8050 are assigned to the RLV+ Plugins
-linkMessage Numbers from -8000 to -8009 are assigned to the RLV+ Core Plugin
-linkMessage Numbers from -8010 to -8019 are assigned to the RLV+ RestrictionsMenu Plugin
-linkMessage Numbers from -8020 to -8047 are reserved for later use
-linkMessage Numbers from -8048 to -8049 are assigned to universal purposes
-*/
 
 
 string PLUGIN_NAME="RLV_CORE";
@@ -59,12 +33,13 @@ list RLV_enabledSeats=["*"];
 //handles
 integer RlvPingListenHandle;
 
+//other
 key MyUniqueId;
 
 key VictimKey=NULL_KEY; // contains active victim key
-//integer currentVictimIndex=-1; //contains the VictimsList-index of the current victim
 
-//a sitting avatar is either in the VvictimsList or in the FreeVictimsList or in the DomList
+//lists
+//a sitting avatar is either in the VictimsList or in the FreeVictimsList or in the DomList
 
 list VictimsList; //Avatars in this list are sitting on an rlvEnabled seat and are considered as restricted
 //integer VICTIMS_LIST_AVATAR_UUID=0;
@@ -93,7 +68,7 @@ integer RECAPTURE_LIST_TIMER=1;
 integer RECAPTURE_LIST_TIMEOUT=2;
 integer RECAPTURE_LIST_STRIDE=3;
 
-list TrapIgnoreList; //Avatars in this list are not tried to be grabbed due an active trap
+list TrapIgnoreList; //Avatars in this list should not be grabbed by an active trap
 ///integer TRAP_IGNORE_LIST_AVATAR_UUID=0;
 integer TRAP_IGNORE_LIST_TIMEOUT=1;
 integer TRAP_IGNORE_LIST_STRIDE=2;
@@ -109,8 +84,7 @@ string RlvBaseRestrictions="@unsit=n|@sittp=n|@tploc=n|@tplure=n|@tplm=n|@accept
 //added for timer
 integer TimerRunning;
 
-string PLUGIN_NAME_RLV_RESTRICTIONS_MENU="RLV_RESTRICTIONS_MENU";
-integer RlvRestrictionsMenuAvailable;
+
 
 // --- functions
 integer getTrapIgnoreIndex(key avatarUuid) {
@@ -720,9 +694,9 @@ default {
 	} // listen
 	
 	collision_start(integer num_detected) {
-		if(RLV_collisionTrap && FreeRlvEnabledSeats) {
+		key avatarWorkingOn=llDetectedKey(0);
+		if(RLV_collisionTrap && FreeRlvEnabledSeats && llGetAgentSize(avatarWorkingOn)!=ZERO_VECTOR) {
 			trapIgnoreListRemoveTimedOutValues();
-			key avatarWorkingOn=llDetectedKey(0);
 			if(
 				   !~getVictimIndex(avatarWorkingOn)
 				&& !~getFreeVictimIndex(avatarWorkingOn)
