@@ -747,7 +747,7 @@ default {
 		for(; index<length; index+=VICTIMS_LIST_STRIDE) {
 			integer time=llList2Integer(tempList, index + VICTIMS_LIST_TIMER);
 			if(time && time<=currentTime) {
-				releaseAvatar(llList2Key(tempList, index));
+				llMessageLinked(LINK_SET, RLV_CORE_COMMAND, llDumpList2String(["release", llList2Key(tempList, index)], ","), NULL_KEY);
 			}
 		}
 	}

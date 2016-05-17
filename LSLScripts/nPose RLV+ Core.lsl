@@ -1,4 +1,4 @@
-// LSL script generated: LSLScripts.nPose RLV+ Core.lslp Tue May 17 16:31:04 Mitteleuropäische Sommerzeit 2016
+// LSL script generated: LSLScripts.nPose RLV+ Core.lslp Tue May 17 17:06:12 Mitteleuropäische Sommerzeit 2016
 
 string NC_READER_CONTENT_SEPARATOR = "%&§";
 string RLV_RELAY_API_COMMAND_RELEASE = "!release";
@@ -568,11 +568,7 @@ default {
         for (; (index < length); (index += 3)) {
             integer time = llList2Integer(tempList,(index + 1));
             if ((time && (time <= currentTime))) {
-                key targetKey = llList2Key(tempList,index);
-                if ((~llListFindList(VictimsList,[targetKey]))) {
-                    addToFreeVictimsList(targetKey);
-                }
-                sendToRlvRelay(targetKey,RLV_RELAY_API_COMMAND_RELEASE,"");
+                llMessageLinked(-1,-8010,llDumpList2String(["release",llList2Key(tempList,index)],","),NULL_KEY);
             }
         }
     }
