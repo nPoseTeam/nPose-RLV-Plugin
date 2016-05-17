@@ -22,13 +22,13 @@ $import LSLScripts.constantsRlvPlugin.lslm ();
 string PLUGIN_NAME="RLV_CORE";
 
 integer ACTIVE_TRAP_SCAN_INTERVALL=3;
-integer ACTIVE_TRAP_COOLDOWN_INTERVALL=60;
 
 // options
 integer RLV_trapTimer; //time in seconds, 0: disable the automatic timer start
 integer RLV_grabTimer; //time in seconds, 0: disable the automatic timer start
 integer RLV_collisionTrap; //0: disabbled, 1:enabled
 list RLV_enabledSeats=["*"];
+integer RLV_cooldownTimer=60; //time in seconds, 0: disable
 
 //handles
 integer RlvPingListenHandle;
@@ -114,7 +114,9 @@ removeFromTrapIgnoreList(key avatarUuid) {
 
 addToTrapIgnoreList(key avatarUuid) {
 	removeFromAllLists(avatarUuid);
-	TrapIgnoreList+=[avatarUuid, llGetUnixTime() + ACTIVE_TRAP_COOLDOWN_INTERVALL];
+	if(RLV_cooldownTimer) {
+		TrapIgnoreList+=[avatarUuid, llGetUnixTime() + RLV_cooldownTimer];
+	}
 }
 
 
@@ -428,6 +430,28 @@ grabAvatar(key targetKey) {
 	}
 }
 
+integer trapAvatar(key targetKey) {
+	//only avatars not sitting can be trapped
+	trapIgnoreListRemoveTimedOutValues();
+	if(llGetAgentSize(targetKey)) {
+		if(FreeRlvEnabledSeats) {
+			if(
+				   !~getVictimIndex(targetKey)
+				&& !~getFreeVictimIndex(targetKey)
+				&& !~getDomIndex(targetKey)
+				&& !~getGrabIndex(targetKey)
+				&& !~getRecaptureIndex(targetKey)
+				&& !~getTrapIgnoreIndex(targetKey)
+			) {
+				sendToRlvRelay(targetKey, "@sit:" + (string)llGetKey() + "=force", "");
+				addToTrapIgnoreList(targetKey);
+				return TRUE;
+			}
+		}
+	}
+	return FALSE;
+}
+
 
 default {
 	state_entry() {
@@ -466,6 +490,9 @@ default {
 			}
 			else if(cmd=="grab") {
 				grabAvatar(target);
+			}
+			else if(cmd=="trap") {
+				trapAvatar(target);
 			}
 			else if(cmd=="read") {
 				llMessageLinked(LINK_SET, NC_READER_REQUEST, llList2String(params, 0), MyUniqueId);
@@ -608,7 +635,10 @@ default {
 					RLV_enabledSeats = llParseString2List(optionSetting, ["/"], []);
 				}
 				else if (optionItem == "rlv_collisiontrap") {
-					RLV_collisionTrap=(integer) optionSetting;
+					RLV_collisionTrap=(integer)optionSetting;
+				}
+				else if (optionItem == "rlv_cooldowntimer") {
+					RLV_cooldownTimer=(integer)optionSetting;
 				}
 			}
 		}
@@ -695,40 +725,16 @@ default {
 	
 	collision_start(integer num_detected) {
 		key avatarWorkingOn=llDetectedKey(0);
-		if(RLV_collisionTrap && FreeRlvEnabledSeats && llGetAgentSize(avatarWorkingOn)!=ZERO_VECTOR) {
-			trapIgnoreListRemoveTimedOutValues();
-			if(
-				   !~getVictimIndex(avatarWorkingOn)
-				&& !~getFreeVictimIndex(avatarWorkingOn)
-				&& !~getDomIndex(avatarWorkingOn)
-				&& !~getGrabIndex(avatarWorkingOn)
-				&& !~getRecaptureIndex(avatarWorkingOn)
-				&& !~getTrapIgnoreIndex(avatarWorkingOn)
-			) {
-				sendToRlvRelay(avatarWorkingOn, "@sit:" + (string)llGetKey() + "=force", "");
-				addToTrapIgnoreList(avatarWorkingOn);
-			}
+		if(RLV_collisionTrap) {
+			trapAvatar(llDetectedKey(0));
 		}
 	}
 	
 	sensor(integer num_detected) {
-		if(FreeRlvEnabledSeats) {
-			trapIgnoreListRemoveTimedOutValues();
-			integer index;
-			for(; index<num_detected; index++) {
-				key avatarWorkingOn=llDetectedKey(index);
-				if(
-					   !~getVictimIndex(avatarWorkingOn)
-					&& !~getFreeVictimIndex(avatarWorkingOn)
-					&& !~getDomIndex(avatarWorkingOn)
-					&& !~getGrabIndex(avatarWorkingOn)
-					&& !~getRecaptureIndex(avatarWorkingOn)
-					&& !~getTrapIgnoreIndex(avatarWorkingOn)
-				) {
-					sendToRlvRelay(avatarWorkingOn, "@sit:" + (string)llGetKey() + "=force", "");
-					addToTrapIgnoreList(avatarWorkingOn);
-					return; //only get one Avatar per cycle
-				}
+		integer index;
+		for(; index<num_detected; index++) {
+			if(trapAvatar(llDetectedKey(index))) {
+				return; //only get one Avatar per cycle
 			}
 		}
 	}
@@ -741,9 +747,7 @@ default {
 		for(; index<length; index+=VICTIMS_LIST_STRIDE) {
 			integer time=llList2Integer(tempList, index + VICTIMS_LIST_TIMER);
 			if(time && time<=currentTime) {
-				key avatarWorkingOn=llList2Key(tempList, index);
-				sendToRlvRelay(avatarWorkingOn, RLV_RELAY_API_COMMAND_RELEASE, "");
-				addToFreeVictimsList(avatarWorkingOn);
+				releaseAvatar(llList2Key(tempList, index));
 			}
 		}
 	}
