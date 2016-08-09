@@ -1,4 +1,4 @@
-// LSL script generated: LSLScripts.nPose RLV+ Menu.lslp Tue May 17 17:00:39 Mitteleuropäische Sommerzeit 2016
+// LSL script generated: LSLScripts.nPose RLV+ Menu.lslp Tue Jul 19 08:45:56 Mitteleuropäische Sommerzeit 2016
 //LICENSE:
 //
 //This script and the nPose scripts are licensed under the GPLv2

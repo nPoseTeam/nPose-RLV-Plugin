@@ -1,4 +1,4 @@
-// LSL script generated: DebuggingAndExamples.nPose RLV+ DebugListener.lslp Tue May 17 17:00:39 Mitteleuropäische Sommerzeit 2016
+// LSL script generated: DebuggingAndExamples.nPose RLV+ DebugListener.lslp Tue Jul 19 08:45:56 Mitteleuropäische Sommerzeit 2016
 
 
 debug(list message){

@@ -1,4 +1,4 @@
-// LSL script generated: LSLScripts.nPose RLV+ Core.lslp Tue May 17 17:06:12 Mitteleuropäische Sommerzeit 2016
+// LSL script generated: LSLScripts.nPose RLV+ Core.lslp Tue Jul 19 08:45:56 Mitteleuropäische Sommerzeit 2016
 
 string NC_READER_CONTENT_SEPARATOR = "%&§";
 string RLV_RELAY_API_COMMAND_RELEASE = "!release";
