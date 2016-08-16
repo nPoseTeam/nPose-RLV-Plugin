@@ -26,9 +26,6 @@ default {
 		else if(num==DIALOG) {
 			debug(["DIALOG", str, (string) id]);
 		}
-		else if(num==RLV_MENU_COMMAND) {
-			debug(["RLV_MENU_COMMAND", str]);
-		}
 		else if(num==RLV_CORE_COMMAND) {
 			debug(["RLV_CORE_COMMAND", str]);
 		}

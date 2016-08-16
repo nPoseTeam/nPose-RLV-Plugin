@@ -1,4 +1,4 @@
-// LSL script generated: DebuggingAndExamples.nPose RLV+ DebugListener.lslp Tue Jul 19 08:45:56 Mitteleuropäische Sommerzeit 2016
+// LSL script generated: DebuggingAndExamples.nPose RLV+ DebugListener.lslp Tue Aug 16 14:03:32 Mitteleuropäische Sommerzeit 2016
 
 
 debug(list message){
@@ -28,9 +28,6 @@ default {
         }
         else  if ((num == -900)) {
             debug(["DIALOG",str,((string)id)]);
-        }
-        else  if ((num == -8000)) {
-            debug(["RLV_MENU_COMMAND",str]);
         }
         else  if ((num == -8010)) {
             debug(["RLV_CORE_COMMAND",str]);
