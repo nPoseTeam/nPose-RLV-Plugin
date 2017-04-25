@@ -122,7 +122,7 @@ string MARKER_COMMENT_START = "/*";
 string MARKER_COMMENT_END = "*/";
 
 float RLV_grabRange=10.0;
-integer OptionUseDisplayNames;
+integer OptionUseDisplayNames=1;
 
 //helper
 // pragma inline
