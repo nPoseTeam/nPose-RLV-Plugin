@@ -1,5 +1,5 @@
 // LSLScripts.nPose RLV+ Menu.lslp 
-// 2017-04-25 13:04:29 - LSLForge (0.1.9.3) generated
+// 2017-06-14 12:52:54 - LSLForge (0.1.9.3) generated
 //LICENSE:
 //
 //This script and the nPose scripts are licensed under the GPLv2
