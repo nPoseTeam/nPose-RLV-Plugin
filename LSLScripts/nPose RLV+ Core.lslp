@@ -17,7 +17,8 @@
 // or IM slmember1 Resident (Leona)
 
 //LinkMessages
-integer USER_PERMISSION_UPDATE = -806; // to register a user defined permission
+//integer USER_PERMISSION_UPDATE = -806; // to register a user defined permission
+integer DO=220; //this can be used to send commands to the core
 
 //integer RLV_MENU_NPOSE_PICK_SEAT_CHANGE_ACTIVE_VICTIM = -8009; //response from the nPose_pickSeat plugin
 integer RLV_CORE_COMMAND             = -8010; //send commands to the RLV CORE
@@ -203,8 +204,8 @@ sendUserPermissionUpdate() {
 	);
 	llMessageLinked(
 		LINK_SET,
-		USER_PERMISSION_UPDATE,
-		llList2CSV([USER_PERMISSION_VICTIM, USER_PERMISSION_TYPE_LIST, llDumpList2String(llList2ListStrided(VictimsList, 0, -1, VICTIMS_LIST_STRIDE), "|")]),
+		DO,
+		"UDPLIST|" + USER_PERMISSION_VICTIM + "=" + llDumpList2String(llList2ListStrided(VictimsList, 0, -1, VICTIMS_LIST_STRIDE), ""),
 		""
 	);
 }
