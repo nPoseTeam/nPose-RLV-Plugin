@@ -94,7 +94,7 @@ integer G(key llToLower)
 _()
 {
     llMessageLinked(((integer)-1), ((integer)-8013), llList2CSV(gT), "");
-    llMessageLinked(((integer)-1), ((integer)-806), llList2CSV((list)"victim" + "list" + llDumpList2String(llList2ListStrided(gT, 0, ((integer)-1), 3), "|")), "");
+    llMessageLinked(((integer)-1), 220, "UDPLIST|" + "victim" + "=" + (string)llList2ListStrided(gT, 0, ((integer)-1), 3), "");
 }
 
 d(key llToLower, integer llGetOwnerKey)
