@@ -16,9 +16,9 @@
 //by the platform.
 //
 // Documentation:
-// https://github.com/LeonaMorro/nPose-RLV-Plugin/wiki
+// https://github.com/nPoseTeam/nPose-RLV-Plugin/wiki
 // Report Bugs to:
-// https://github.com/LeonaMorro/nPose-RLV-Plugin/issues
+// https://github.com/nPoseTeam/nPose-RLV-Plugin/issues
 // or IM slmember1 Resident (Leona)
 
 /*
@@ -35,7 +35,44 @@ to show a menu to a user, the following steps are done:
 */
 
 
-$import LSLScripts.constantsRlvPlugin.lslm ();
+//LinkMessages
+//integer RLV_MENU_NPOSE_PICK_SEAT_CHANGE_ACTIVE_VICTIM = -8009; //response from the nPose_pickSeat plugin
+integer RLV_CORE_COMMAND             = -8010; //send commands to the RLV CORE
+//integer RLV_CHANGE_SELECTED_VICTIM   = -8012; //can be used to change the current victim. The new current victim has to be in the victims list
+integer RLV_VICTIMS_LIST_UPDATE      = -8013; //for internal use
+integer RLV_CORE_PLUGIN_ACTION_RELAY = -8016; //for internal use
+//integer RLV_CORE_PLUGIN_MENU_RELAY   = -8017; //for internal use
+
+//integer RLV_MENU_DUMP_DEBUG_STRING = -8008; //TODO: remove this
+//integer RLV_CORE_DUMP_DEBUG_STRING = -8018; //TODO: remove this
+
+integer OPTIONS              = -240;
+integer MEM_USAGE            = 34334;
+
+//nPose Menu Plugin
+//integer PLUGIN_MENU_REGISTER=-810;
+integer PLUGIN_ACTION=-830;
+integer PLUGIN_ACTION_DONE=-831;
+integer PLUGIN_MENU=-832;
+integer PLUGIN_MENU_DONE=-833;
+
+integer PARAM_PATH=0;
+integer PARAM_PAGE=1;
+integer PARAM_PROMPT=2;
+integer PARAM_BUTTONS=3;
+integer PARAM_PLUGIN_LOCAL_PATH=4;
+integer PARAM_PLUGIN_NAME=5;
+integer PARAM_PLUGIN_MENU_PARAMS=6;
+integer PARAM_PLUGIN_ACTION_PARAMS=7;
+
+
+//RLV Relay timeouts
+//integer RLV_RELAY_ASK_TIMEOUT = 60; //the time the user gets to react on a Relay permission request
+integer RLV_RELAY_TIMEOUT     =  4; //the time to wait for an Relay response
+
+//other
+string STRING_NEW_LINE="\n";
+
 string MY_PLUGIN_NAME="nPose_RLV+";
 
 string STRING_PROMPT_VICTIM_CAPTION="Selected Victim: ";

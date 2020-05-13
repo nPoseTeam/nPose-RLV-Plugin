@@ -1,5 +1,3 @@
-$import LSLScripts.constantsRlvPlugin.lslm ();
-
 // Theese scripts are licensed under the GPLv2 (http://www.gnu.org/licenses/gpl-2.0.txt),
 // with the following addendum:
 //
@@ -13,12 +11,56 @@ $import LSLScripts.constantsRlvPlugin.lslm ();
 // the most permissive possible set of permissions allowed by the platform.
 //
 // Documentation:
-// https://github.com/LeonaMorro/nPose-RLV-Plugin/wiki
+// https://github.com/nPoseTeam/nPose-RLV-Plugin/wiki
 // Report Bugs to:
-// https://github.com/LeonaMorro/nPose-RLV-Plugin/issues
+// https://github.com/nPoseTeam/nPose-RLV-Plugin/issues
 // or IM slmember1 Resident (Leona)
 
+//LinkMessages
+integer USER_PERMISSION_UPDATE = -806; // to register a user defined permission
 
+//integer RLV_MENU_NPOSE_PICK_SEAT_CHANGE_ACTIVE_VICTIM = -8009; //response from the nPose_pickSeat plugin
+integer RLV_CORE_COMMAND             = -8010; //send commands to the RLV CORE
+//integer RLV_CHANGE_SELECTED_VICTIM   = -8012; //can be used to change the current victim. The new current victim has to be in the victims list
+integer RLV_VICTIMS_LIST_UPDATE      = -8013; //for internal use
+integer RLV_CORE_PLUGIN_ACTION_RELAY = -8016; //for internal use
+integer RLV_CORE_PLUGIN_MENU_RELAY   = -8017; //for internal use
+
+//integer RLV_MENU_DUMP_DEBUG_STRING = -8008; //TODO: remove this
+integer RLV_CORE_DUMP_DEBUG_STRING = -8018; //TODO: remove this
+
+integer OPTIONS              = -240;
+integer MEM_USAGE            = 34334;
+integer SEAT_UPDATE          = 251;
+
+//nPose Menu Plugin
+integer PLUGIN_ACTION_DONE=-831;
+integer PLUGIN_MENU_DONE=-833;
+
+//NC Reader
+integer NC_READER_REQUEST  = 224;
+integer NC_READER_RESPONSE = 225;
+string NC_READER_CONTENT_SEPARATOR="%&§";
+
+//listener channels
+integer RLV_RELAY_CHANNEL    = -1812221819;
+
+//RLV Relay timeouts
+integer RLV_RELAY_ASK_TIMEOUT = 60; //the time the user gets to react on a Relay permission request
+integer RLV_RELAY_TIMEOUT     =  4; //the time to wait for an Relay response
+
+//RLV Relay commands
+string RLV_RELAY_API_COMMAND_RELEASE="!release";
+string RLV_RELAY_API_COMMAND_VERSION="!version";
+string RLV_RELAY_API_COMMAND_PING="ping";
+string RLV_RELAY_API_COMMAND_PONG="!pong";
+
+//user defined Permissions
+string USER_PERMISSION_TYPE_LIST="list";
+string USER_PERMISSION_TYPE_BOOL="bool";
+string USER_PERMISSION_VICTIM="victim";
+
+//other
 string PLUGIN_NAME="RLV_CORE";
 
 integer ACTIVE_TRAP_SCAN_INTERVALL=3;
@@ -489,13 +531,20 @@ default {
 			trapIgnoreListRemoveTimedOutValues();
 			FreeNonRlvEnabledSeats=0;
 			FreeRlvEnabledSeats=0;
+			
 			SlotList=llParseStringKeepNulls(str, ["^"], []);
+			str="";
+			integer slotsStride=(integer)llList2String(SlotList, 0);
+			integer preambleLength=(integer)llList2String(SlotList, 1);
+			SlotList=llDeleteSubList(SlotList, 0, preambleLength-1);
+			integer numberOfSlots=llGetListLength(SlotList)/slotsStride;
+			
 			integer length=llGetListLength(SlotList);
 			integer index;
-			for(; index<length; index+=8) {
-				key avatarWorkingOn=(key)llList2String(SlotList, index+4);
+			for(; index<length; index+=slotsStride) {
+				key avatarWorkingOn=(key)llList2String(SlotList, index+8);
 				removeFromTrapIgnoreList(avatarWorkingOn);
-				integer seatNumber=index/8+1;
+				integer seatNumber=index/slotsStride+1;
 				integer isRlvEnabledSeat=~llListFindList(RLV_enabledSeats, ["*"]) || ~llListFindList(RLV_enabledSeats, [(string)seatNumber]);
 				if(avatarWorkingOn) {
 					if(isRlvEnabledSeat) {
