@@ -1,11 +1,33 @@
 // LSLScripts.nPose RLV+ Core.lslp 
-// 2017-06-14 12:52:54 - LSLForge (0.1.9.3) generated
+// 2020-05-13 15:37:52 - LSLForge (0.1.9.6) generated
+// Theese scripts are licensed under the GPLv2 (http://www.gnu.org/licenses/gpl-2.0.txt),
+// with the following addendum:
+//
+// These scripts are free to be copied, modified, and redistributed, subject to the following conditions:
+// - If you distribute these scripts, you must leave them full perms.
+// - If you modify these scripts and distribute the modifications, you must also make your modifications full perms.
+//
+// "Full perms" means having the modify, copy, and transfer permissions enabled in Second Life 
+// and/or other virtual world platforms derived from Second Life (such as OpenSim).
+// If the platform should allow more fine-grained permissions, then "full perms" will mean
+// the most permissive possible set of permissions allowed by the platform.
+//
+// Documentation:
+// https://github.com/nPoseTeam/nPose-RLV-Plugin/wiki
+// Report Bugs to:
+// https://github.com/nPoseTeam/nPose-RLV-Plugin/issues
+// or IM slmember1 Resident (Leona)
+
 
 string NC_READER_CONTENT_SEPARATOR = "%&§";
+
+//RLV Relay commands
 string RLV_RELAY_API_COMMAND_RELEASE = "!release";
 string RLV_RELAY_API_COMMAND_VERSION = "!version";
 string RLV_RELAY_API_COMMAND_PING = "ping";
 string RLV_RELAY_API_COMMAND_PONG = "!pong";
+
+//user defined Permissions
 string USER_PERMISSION_TYPE_LIST = "list";
 string USER_PERMISSION_VICTIM = "victim";
 
@@ -293,7 +315,7 @@ default {
         (RlvBaseRestrictions = llDumpList2String(llParseStringKeepNulls(str,["/"],[]),"|"));
       }
     }
-    else  if ((num == 35353)) {
+    else  if ((num == 251)) {
       recaptureListRemoveTimedOutEntrys();
       integer currentTime = llGetUnixTime();
       integer _length7 = llGetListLength(GrabList);
@@ -310,12 +332,17 @@ default {
       (FreeNonRlvEnabledSeats = 0);
       (FreeRlvEnabledSeats = 0);
       (SlotList = llParseStringKeepNulls(str,["^"],[]));
+      (str = "");
+      integer slotsStride = ((integer)llList2String(SlotList,0));
+      integer preambleLength = ((integer)llList2String(SlotList,1));
+      (SlotList = llDeleteSubList(SlotList,0,(preambleLength - 1)));
+      integer numberOfSlots = (llGetListLength(SlotList) / slotsStride);
       integer length = llGetListLength(SlotList);
       integer index;
-      for (; (index < length); (index += 8)) {
-        key avatarWorkingOn = ((key)llList2String(SlotList,(index + 4)));
+      for (; (index < length); (index += slotsStride)) {
+        key avatarWorkingOn = ((key)llList2String(SlotList,(index + 8)));
         removeFromTrapIgnoreList(avatarWorkingOn);
-        integer seatNumber = ((index / 8) + 1);
+        integer seatNumber = ((index / slotsStride) + 1);
         integer isRlvEnabledSeat = ((~llListFindList(RLV_enabledSeats,["*"])) || (~llListFindList(RLV_enabledSeats,[((string)seatNumber)])));
         if (avatarWorkingOn) {
           if (isRlvEnabledSeat) {
@@ -551,3 +578,5 @@ default {
     llResetScript();
   }
 }
+// LSLScripts.nPose RLV+ Core.lslp 
+// 2020-05-13 15:37:52 - LSLForge (0.1.9.6) generated
