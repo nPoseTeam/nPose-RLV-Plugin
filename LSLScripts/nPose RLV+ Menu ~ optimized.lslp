@@ -88,786 +88,567 @@ list LslLibrary =
     , ""
     , ""
     , ""
-    , ""
-    , ""
-    , "neck"
-    , "root"
-    ];
-list gZ = 
-    [ "/*86400*/+1d"
-    , "/*21600*/+6h"
-    , "/*3600*/+1h"
-    , "/*900*/+15m"
-    , "/*60*/+1m"
-    ];
-list Pop = 
-    [ "/*-86400*/-1d"
-    , "/*-21600*/-6h"
-    , "/*-3600*/-1h"
-    , "/*-900*/-15m"
-    , "/*-60*/-1m"
-    , "/*0*/Reset"
-    ];
-list gS;
-list gT;
-list ResumeVoid;
-list IsSaveDue;
-list System;
-list gR;
-float LslUserScript = 10;
-integer ga = 1;
 
-string J(string llToLower, integer llSay, integer llList2Key)
-{
-    return llDumpList2String(llDeleteSubList(llParseStringKeepNulls(llToLower, (list)":", []), llSay, llList2Key), ":");
+// LSLScripts.nPose RLV+ Core.lslp 
+// 2017-06-14 12:52:54 - LSLForge (0.1.9.3) generated
+
+string NC_READER_CONTENT_SEPARATOR = "%&§";
+string RLV_RELAY_API_COMMAND_RELEASE = "!release";
+string RLV_RELAY_API_COMMAND_VERSION = "!version";
+string RLV_RELAY_API_COMMAND_PING = "ping";
+string RLV_RELAY_API_COMMAND_PONG = "!pong";
+string USER_PERMISSION_TYPE_LIST = "l";
+string USER_PERMISSION_VICTIM = "victim";
+
+// options
+integer RLV_trapTimer;
+integer RLV_grabTimer;
+integer RLV_collisionTrap;
+list RLV_enabledSeats = ["*"];
+integer RLV_cooldownTimer = 60;
+
+//other
+key MyUniqueId;
+
+//lists
+//a sitting avatar is either in the VictimsList or in the FreeVictimsList or in the DomList
+
+list VictimsList;
+
+list FreeVictimsList;
+
+list DomList;
+
+list GrabList;
+
+list RecaptureList;
+
+list TrapIgnoreList;
+
+integer FreeRlvEnabledSeats;
+integer FreeNonRlvEnabledSeats;
+
+list SlotList;
+
+// for RLV base restrictions and reading them from a notecard
+string RlvBaseRestrictions = "@unsit=n|@sittp=n|@tploc=n|@tplure=n|@tplm=n|@acceptpermission=add|@editobj:%MYKEY%=add";
+
+//added for timer
+integer TimerRunning;
+
+
+
+// --- functions
+integer getTrapIgnoreIndex(key avatarUuid){
+  return llListFindList(TrapIgnoreList,[avatarUuid]);
 }
 
-string Q(string llToLower, integer llSay, integer llList2Key)
-{
-    return llDumpList2String(llList2List(llParseStringKeepNulls(llToLower, (list)":", []), llSay, llList2Key), ":");
-}
-
-string X(list llToLower)
-{
-    integer loc_index;
-    integer loc_length = llToLower != [];
-    list loc_tempNodes;
-    for (; loc_index < loc_length; ++loc_index)
-    {
-        string loc_currentNodeString = llList2String(llToLower, loc_index);
-        if (!(loc_currentNodeString == ""))
-        {
-            loc_tempNodes = loc_tempNodes + llParseStringKeepNulls(loc_currentNodeString, (list)":", []);
-        }
+trapIgnoreListRemoveTimedOutValues(){
+  integer currentTime = llGetUnixTime();
+  integer length = llGetListLength(TrapIgnoreList);
+  integer index;
+  for (; (index < length); (index += 2)) {
+    integer timeout = llList2Integer(TrapIgnoreList,(index + 1));
+    if ((timeout && (timeout < currentTime))) {
+      (TrapIgnoreList = llDeleteSubList(TrapIgnoreList,index,((index + 2) - 1)));
+      (index -= 2);
+      (length -= 2);
     }
-    return llDumpList2String(loc_tempNodes, ":");
+  }
 }
 
-string N(string llToLower, string llList2Key)
-{
-    return Q(llToLower, 0, ~(llParseString2List(llList2Key, (list)":", []) != []));
+removeFromTrapIgnoreList(key avatarUuid){
+  integer index = getTrapIgnoreIndex(avatarUuid);
+  if ((~index)) {
+    (TrapIgnoreList = llDeleteSubList(TrapIgnoreList,index,((index + 2) - 1)));
+  }
 }
 
-string F(string llToLower, integer llList2List, string llSay, list llList2Key, list llList2Integer)
-{
-    return llDumpList2String((list)llToLower + llList2List + llDumpList2String(llParseStringKeepNulls(llSay, (list)",", []), "‚") + llDumpList2String(llList2Key, ",") + llList2List(llList2Integer + "" + "" + "" + "", 0, 3), "|");
+addToTrapIgnoreList(key avatarUuid){
+  removeFromAllLists(avatarUuid);
+  if (RLV_cooldownTimer) {
+    (TrapIgnoreList += [avatarUuid,(llGetUnixTime() + RLV_cooldownTimer)]);
+  }
 }
 
-string U(string llToLower)
-{
-    integer loc_start = llSubStringIndex(llToLower, "/*");
-    if (~loc_start)
+
+// NO pragma inline
+debug(list message){
+  llOwnerSay((((llGetScriptName() + "\n##########\n#>") + llDumpList2String(message,"\n#>")) + "\n##########"));
+}
+
+// NO pragma inline
+addToVictimsList(key avatarUuid,integer timerTime){
+  removeFromAllLists(avatarUuid);
+  if ((timerTime > 0)) {
+    (timerTime += llGetUnixTime());
+  }
+  else  if ((timerTime < 0)) {
+    (timerTime = 0);
+  }
+  (VictimsList += [avatarUuid,timerTime,0]);
+  llMessageLinked(-1,-8013,llList2CSV(VictimsList),"");
+//  llMessageLinked(-1,-808,llList2CSV([USER_PERMISSION_VICTIM,USER_PERMISSION_TYPE_LIST,llDumpList2String(llList2ListStrided(VictimsList,0,-1,3),"|")]),"");
+  llMessageLinked(LINK_SET, 220, "UDPLIST|" + USER_PERMISSION_VICTIM + "=" + llList2CSV(VictimsList), "");
+  sendToRlvRelay(avatarUuid,((RLV_RELAY_API_COMMAND_VERSION + "|") + RlvBaseRestrictions),"");
+  if ((!TimerRunning)) {
+    llSetTimerEvent(1.0);
+    (TimerRunning = 1);
+  }
+}
+
+// NO pragma inline
+removeFromVictimsList(key avatarUuid){
+  integer isChanged;
+  integer index;
+  while ((~(index = llListFindList(VictimsList,[avatarUuid])))) {
+    (VictimsList = llDeleteSubList(VictimsList,index,((index + 3) - 1)));
+    (isChanged = 1);
+  }
+  if (isChanged) {
+    llMessageLinked(-1,-8013,llList2CSV(VictimsList),"");
+//    llMessageLinked(-1,-808,llList2CSV([USER_PERMISSION_VICTIM,USER_PERMISSION_TYPE_LIST,llDumpList2String(llList2ListStrided(VictimsList,0,-1,3),"|")]),"");
+    llMessageLinked(LINK_SET, 220, "UDPLIST|" + USER_PERMISSION_VICTIM + "=" + llList2CSV(VictimsList), "");
+    if (((!llGetListLength(VictimsList)) && TimerRunning)) {
+      llSetTimerEvent(0.0);
+      (TimerRunning = 0);
+    }
+  }
+}
+
+// NO pragma inline
+removeFromDomList(key avatarUuid){
+  integer index;
+  while ((~(index = llListFindList(DomList,[avatarUuid])))) {
+    (DomList = llDeleteSubList(DomList,index,((index + 1) - 1)));
+  }
+}
+
+// NO pragma inline
+addToFreeVictimsList(key avatarUuid){
+  removeFromAllLists(avatarUuid);
+  (FreeVictimsList += avatarUuid);
+}
+
+// NO pragma inline
+removeFromFreeVictimsList(key avatarUuid){
+  integer index;
+  while ((~(index = llListFindList(FreeVictimsList,[avatarUuid])))) {
+    (FreeVictimsList = llDeleteSubList(FreeVictimsList,index,((index + 1) - 1)));
+  }
+}
+
+// NO pragma inline
+recaptureListRemoveTimedOutEntrys(){
+  integer currentTime = llGetUnixTime();
+  integer length = llGetListLength(RecaptureList);
+  integer index;
+  for (; (index < length); (index += 3)) {
+    integer timeout = llList2Integer(RecaptureList,(index + 2));
+    if ((timeout && (timeout < currentTime))) {
+      (RecaptureList = llDeleteSubList(RecaptureList,index,((index + 3) - 1)));
+      (index -= 3);
+      (length -= 3);
+    }
+  }
+}
+
+// NO pragma inline
+removeFromAllLists(key avatarUuid){
+  removeFromVictimsList(avatarUuid);
+  removeFromFreeVictimsList(avatarUuid);
+  removeFromDomList(avatarUuid);
+  integer index;
+  while ((~(index = llListFindList(GrabList,[avatarUuid])))) {
     {
-        integer loc_end = llSubStringIndex(llToLower, "*/");
-        if (~loc_end)
-        {
-            if (loc_start < loc_end)
-            {
-                return llGetSubString(llToLower, -~-~loc_start, ~-loc_end);
+      (GrabList = llDeleteSubList(GrabList,index,((index + 2) - 1)));
+    }
+  }
+  integer _index2;
+  while ((~(_index2 = llListFindList(RecaptureList,[avatarUuid])))) {
+    {
+      (RecaptureList = llDeleteSubList(RecaptureList,_index2,((_index2 + 3) - 1)));
+    }
+  }
+  removeFromTrapIgnoreList(avatarUuid);
+}
+
+// send rlv commands to the RLV relay, usable for common format (not ping)
+// NO pragma inline
+sendToRlvRelay(key victim,string rlvCommand,string identifier){
+  if (rlvCommand) {
+    if (victim) {
+      string valueIfFalse = ((string)MyUniqueId);
+      string ret = valueIfFalse;
+      if (llStringLength(identifier)) {
+        (ret = identifier);
+      }
+      string replace = ((string)llGetKey());
+      llSay(-1812221819,((((ret + ",") + ((string)victim)) + ",") + llDumpList2String(llParseStringKeepNulls(rlvCommand,["%MYKEY%"],[]),replace)));
+    }
+  }
+}
+
+
+setVictimTimer(key avatarUuid,integer time){
+  integer index = llListFindList(VictimsList,[avatarUuid]);
+  if ((~index)) {
+    (VictimsList = llListReplaceList(VictimsList,[time],(index + 1),(index + 1)));
+    llMessageLinked(-1,-8013,llList2CSV(VictimsList),"");
+  }
+}
+
+grabAvatar(key targetKey){
+  if ((~llListFindList(VictimsList,[targetKey]))) {
+    sendToRlvRelay(targetKey,RlvBaseRestrictions,"");
+  }
+  else  if ((~llListFindList(FreeVictimsList,[targetKey]))) {
+//    addToVictimsList(targetKey,RLV_grabTimer);
+  }
+  else  if ((~llListFindList(DomList,[targetKey]))) {
+  }
+  else  {
+    removeFromAllLists(targetKey);
+    (GrabList += [targetKey,(llGetUnixTime() + 60)]);
+    while ((llGetListLength(GrabList) > 6)) {
+      {
+        (GrabList = llList2List(GrabList,2,-1));
+      }
+    }
+    sendToRlvRelay(targetKey,(("@sit:" + ((string)llGetKey())) + "=force"),"");
+  }
+}
+
+integer trapAvatar(key targetKey){
+  trapIgnoreListRemoveTimedOutValues();
+  if (llGetAgentSize(targetKey)) {
+    if (FreeRlvEnabledSeats) {
+      if (((((((!(~llListFindList(VictimsList,[targetKey]))) && (!(~llListFindList(FreeVictimsList,[targetKey])))) && (!(~llListFindList(DomList,[targetKey])))) && (!(~llListFindList(GrabList,[targetKey])))) && (!(~llListFindList(RecaptureList,[targetKey])))) && (!(~getTrapIgnoreIndex(targetKey))))) {
+        sendToRlvRelay(targetKey,(("@sit:" + ((string)llGetKey())) + "=force"),"");
+        addToTrapIgnoreList(targetKey);
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+
+default {
+
+    state_entry() {
+    llListen(-1812221819,"",NULL_KEY,"");
+    (MyUniqueId = llGenerateKey());
+  }
+
+
+    link_message(integer sender,integer num,string str,key id) {
+    if ((num == -8010)) {
+      list temp = llParseStringKeepNulls(str,[","],[]);
+      string baseR = llList2String(temp, 1);
+      string cmd = llToLower(llStringTrim(llList2String(temp,0),3));
+      key target = ((key)llStringTrim(llList2String(temp,1),3));
+      list params = llDeleteSubList(temp,0,1);
+      if (target) {
+        if ((cmd == "rlvcommand")) {
+          sendToRlvRelay(target,llDumpList2String(llParseStringKeepNulls(llList2String(params,0),["/"],[]),"|"),"");
+        }
+        else  if ((cmd == "release")) {
+          if ((~llListFindList(VictimsList,[target]))) {
+            addToFreeVictimsList(target);
+          }
+          sendToRlvRelay(target,RLV_RELAY_API_COMMAND_RELEASE,"");
+        }
+        else  if ((cmd == "unsit")) {
+          if ((~llListFindList(VictimsList,[target]))) {
+            addToFreeVictimsList(target);
+          }
+          sendToRlvRelay(target,RLV_RELAY_API_COMMAND_RELEASE,"");
+          llSleep(1.5);
+          llUnSit(target);
+        }
+        else  if ((cmd == "settimer")) {
+          setVictimTimer(target,((integer)llList2String(params,0)));
+        }
+        else  if ((cmd == "grab")) {
+          grabAvatar(target);
+        }
+        else  if ((cmd == "trap")) {
+          trapAvatar(target);
+        }
+      }
+      if ((cmd == "read")) {
+        llMessageLinked(-1,224,baseR,MyUniqueId);
+      }
+    }
+    else  if ((num == 225)) {
+      if ((id == MyUniqueId)) {
+        (str = llDumpList2String(llList2List(llParseStringKeepNulls(str,[NC_READER_CONTENT_SEPARATOR],[]),3,-1),""));
+        (RlvBaseRestrictions = llDumpList2String(llParseStringKeepNulls(str,["/"],[]),"|"));
+      }
+      llSay(0, "base restrilctions: " + RlvBaseRestrictions);
+    }
+    //seat_update
+    else  if ((num == 251)) {
+      recaptureListRemoveTimedOutEntrys();
+      integer currentTime = llGetUnixTime();
+      integer _length7 = llGetListLength(GrabList);
+      integer _index8;
+      for (; (_index8 < _length7); (_index8 += 2)) {
+        integer timeout = llList2Integer(GrabList,(_index8 + 1));
+        if ((timeout < currentTime)) {
+          (GrabList = llDeleteSubList(GrabList,_index8,((_index8 + 2) - 1)));
+          (_index8 -= 2);
+          (_length7 -= 2);
+        }
+      }
+      trapIgnoreListRemoveTimedOutValues();
+      (FreeNonRlvEnabledSeats = 0);
+      (FreeRlvEnabledSeats = 0);
+      (SlotList = llParseStringKeepNulls(str,["^"],[]));
+            str="";
+            integer slotsStride=(integer)llList2String(SlotList, 0);
+            integer preambleLength=(integer)llList2String(SlotList, 1);
+            (SlotList=llDeleteSubList(SlotList, 0, preambleLength-1));
+            integer numberOfSlots=llGetListLength(SlotList)/slotsStride;
+      integer length = llGetListLength(SlotList);
+      integer index;
+      for (; (index < length); (index += slotsStride)) {
+        key avatarWorkingOn = ((key)llList2String(SlotList,(index + 8)));
+        removeFromTrapIgnoreList(avatarWorkingOn);
+        integer seatNumber = ((index / slotsStride) + 1);
+        integer isRlvEnabledSeat = ((~llListFindList(RLV_enabledSeats,["*"])) || (~llListFindList(RLV_enabledSeats,[((string)seatNumber)])));
+        if (avatarWorkingOn) {
+          if (isRlvEnabledSeat) {
+            if ((!(~llListFindList(VictimsList,[avatarWorkingOn])))) {
+              if ((~llListFindList(GrabList,[avatarWorkingOn]))) {
+                addToVictimsList(avatarWorkingOn,RLV_grabTimer);
+              }
+              else  if ((~llListFindList(RecaptureList,[avatarWorkingOn]))) {
+                addToVictimsList(avatarWorkingOn,llList2Integer(RecaptureList,(llListFindList(RecaptureList,[avatarWorkingOn]) + 1)));
+              }
+              else  if ((~llListFindList(FreeVictimsList,[avatarWorkingOn]))) {
+              }
+              else  if ((~llListFindList(DomList,[avatarWorkingOn]))) {
+                addToFreeVictimsList(avatarWorkingOn);
+              }
+              else  {
+                addToVictimsList(avatarWorkingOn,RLV_trapTimer);
+              }
             }
-        }
-    }
-    return "";
-}
-
-key B(key llToLower)
-{
-    integer loc_index = System != [];
-    for (; loc_index; --loc_index)
-    {
-        if (!~llListFindList(gS, (list)llList2Key(System, ~-loc_index)))
-        {
-            IsSaveDue = llDeleteSubList(IsSaveDue, ~-loc_index, ~-loc_index);
-            System = llDeleteSubList(System, ~-loc_index, ~-loc_index);
-        }
-    }
-    if (llToLower)
-    {
-        loc_index = G(llToLower);
-        if (!~loc_index)
-        {
-            loc_index = _(llToLower);
-            if (~loc_index)
-            {
-                loc_index = Y(llToLower, llToLower);
+          }
+          else  {
+            if (((~llListFindList(VictimsList,[avatarWorkingOn])) || (~llListFindList(RecaptureList,[avatarWorkingOn])))) {
+              sendToRlvRelay(avatarWorkingOn,RLV_RELAY_API_COMMAND_RELEASE,"");
             }
-            else if ((gS != []) < 3)
-            {
-                return "00000000-0000-0000-0000-000000000000";
+            removeFromAllLists(avatarWorkingOn);
+            (DomList += [avatarWorkingOn]);
+          }
+        }
+        else  {
+          if (isRlvEnabledSeat) {
+            (FreeRlvEnabledSeats++);
+          }
+          else  {
+            (FreeNonRlvEnabledSeats++);
+          }
+        }
+      }
+      list tempList;
+      (tempList = FreeVictimsList);
+      (length = llGetListLength(tempList));
+      (index = 0);
+      for (; (index < length); (index += 1)) {
+        key avatarWorkingOn = llList2Key(tempList,index);
+        if ((!(~llListFindList(SlotList,[((string)avatarWorkingOn)])))) {
+          addToTrapIgnoreList(avatarWorkingOn);
+        }
+      }
+      (tempList = DomList);
+      (length = llGetListLength(tempList));
+      (index = 0);
+      for (; (index < length); (index += 1)) {
+        key avatarWorkingOn = llList2Key(tempList,index);
+        if ((!(~llListFindList(SlotList,[((string)avatarWorkingOn)])))) {
+          addToTrapIgnoreList(avatarWorkingOn);
+        }
+      }
+      (tempList = VictimsList);
+      (length = llGetListLength(tempList));
+      (index = 0);
+      for (; (index < length); (index += 3)) {
+        key avatarWorkingOn = llList2Key(tempList,index);
+        if ((!(~llListFindList(SlotList,[((string)avatarWorkingOn)])))) {
+          integer relayVersion;
+          integer _index32 = llListFindList(VictimsList,[avatarWorkingOn]);
+          if ((~_index32)) {
+            (relayVersion = llList2Integer(VictimsList,(_index32 + 2)));
+          }
+          if (relayVersion) {
+            integer timerTime = (llList2Integer(tempList,(index + 1)) - llGetUnixTime());
+            removeFromAllLists(avatarWorkingOn);
+            recaptureListRemoveTimedOutEntrys();
+            if ((timerTime < 0)) {
+              (timerTime = 0);
             }
-            else
-            {
-                loc_index = Y(llToLower, (key)llList2String(gS, 0));
+            (RecaptureList += [avatarWorkingOn,timerTime,0]);
+            while ((llGetListLength(RecaptureList) > 15)) {
+              {
+                (RecaptureList = llList2List(RecaptureList,3,-1));
+              }
             }
+          }
+          else  {
+            addToTrapIgnoreList(avatarWorkingOn);
+          }
         }
-        return llList2Key(System, loc_index);
+      }
     }
-    return "00000000-0000-0000-0000-000000000000";
-}
+    else  if ((num == -8016)) {
+      llMessageLinked(-1,-831,str,id);
+    }
+    else  if ((num == -8017)) {
+      llMessageLinked(-1,-833,str,id);
+    }
+    else  if ((num == -240)) {
+      list optionsToSet = llParseStringKeepNulls(str,["~","|"],[]);
+      integer length = llGetListLength(optionsToSet);
+      integer index;
+      for (; (index < length); (++index)) {
+        list optionsItems = llParseString2List(llList2String(optionsToSet,index),["="],[]);
+        string optionItem = llToLower(llStringTrim(llList2String(optionsItems,0),3));
+        string optionString = llList2String(optionsItems,1);
+        string optionSetting = llToLower(llStringTrim(optionString,3));
+        integer optionSettingFlag = ((optionSetting == "on") || ((integer)optionSetting));
+        if ((optionItem == "rlv_grabtimer")) {
+          (RLV_grabTimer = ((integer)optionSetting));
+        }
+        else  if ((optionItem == "rlv_traptimer")) {
+          (RLV_trapTimer = ((integer)optionSetting));
+        }
+        else  if ((optionItem == "rlv_enabledseats")) {
+          (RLV_enabledSeats = llParseString2List(optionSetting,["/","~"],[]));
+        }
+        else  if ((optionItem == "rlv_collisiontrap")) {
+          (RLV_collisionTrap = optionSettingFlag);
+        }
+        else  if ((optionItem == "rlv_cooldowntimer")) {
+          (RLV_cooldownTimer = ((integer)optionSetting));
+        }
+        else  if ((optionItem == "rlv_traprange")) {
+          if (((float)optionSetting)) {
+            llSensorRepeat("",NULL_KEY,1,((float)optionSetting),3.14159265,3);
+          }
+          else  {
+            llSensorRemove();
+          }
+        }
+      }
+    }
+    else  if ((num == 34334)) {
+      llSay(0,(((((((("Memory Used by " + llGetScriptName()) + ": ") + ((string)llGetUsedMemory())) + " of ") + ((string)llGetMemoryLimit())) + ", Leaving ") + ((string)llGetFreeMemory())) + " memory free."));
+    }
+    else  if ((num == -8018)) {
+      if ((str == "l")) {
+        debug((((((((((((["VictimsList"] + VictimsList) + ["####","FreeVictimsList"]) + FreeVictimsList) + ["####","DomList"]) + DomList) + ["####","GrabList"]) + GrabList) + ["####","RecaptureList"]) + RecaptureList) + ["####","TrapIgnoreList"]) + TrapIgnoreList));
+      }
+      else  if ((str == "o")) {
+        debug((["RLV_trapTimer",RLV_trapTimer,"####","RLV_grabTimer",RLV_grabTimer,"####","RLV_collisionTrap",RLV_collisionTrap,"####","RLV_enabledSeats"] + RLV_enabledSeats));
+      }
+    }
+  }
 
-integer Y(key llToLower, key llList2Key)
-{
-    if (llToLower)
-    {
-        if (~_(llList2Key))
-        {
-            integer loc_index = G(llToLower);
-            if (~loc_index)
-            {
-                IsSaveDue = llListReplaceList(IsSaveDue, (list)llToLower, loc_index, loc_index);
-                System = llListReplaceList(System, (list)llList2Key, loc_index, loc_index);
-                return loc_index;
+
+    listen(integer channel,string name,key id,string message) {
+    if ((channel == -1812221819)) {
+      list messageParts = llParseStringKeepNulls(message,[","],[]);
+      if ((((key)llList2String(messageParts,1)) == llGetKey())) {
+        string cmd_name = llList2String(messageParts,0);
+        string command = llList2String(messageParts,2);
+        string reply = llList2String(messageParts,3);
+        key senderAvatarId = llGetOwnerKey(id);
+        if ((command == RLV_RELAY_API_COMMAND_VERSION)) {
+          integer _index1 = llListFindList(VictimsList,[senderAvatarId]);
+          if ((~_index1)) {
+            (VictimsList = llListReplaceList(VictimsList,[((integer)reply)],(_index1 + 2),(_index1 + 2)));
+            llMessageLinked(-1,-8013,llList2CSV(VictimsList),"");
+          }
+        }
+        else  if ((command == RLV_RELAY_API_COMMAND_RELEASE)) {
+          if ((reply == "ok")) {
+            if ((~llListFindList(VictimsList,[senderAvatarId]))) {
+              addToFreeVictimsList(senderAvatarId);
             }
-            else
-            {
-                IsSaveDue = IsSaveDue + llToLower;
-                System = System + llList2Key;
-                return ~-(IsSaveDue != []);
+            integer _index5;
+            while ((~(_index5 = llListFindList(GrabList,[senderAvatarId])))) {
+              {
+                (GrabList = llDeleteSubList(GrabList,_index5,((_index5 + 2) - 1)));
+              }
             }
-        }
-    }
-    return ((integer)-1);
-}
-
-string R(key llToLower)
-{
-    return "Selected Victim: " + M(!(llToLower == "00000000-0000-0000-0000-000000000000"), M(ga, llGetDisplayName(llToLower), llKey2Name(llToLower)), "NONE");
-}
-
-string A(string llToLower)
-{
-    llToLower = llDumpList2String(llParseStringKeepNulls(llToLower, (list)"`", []), "‵");
-    llToLower = llDumpList2String(llParseStringKeepNulls(llToLower, (list)"|", []), "┃");
-    llToLower = llDumpList2String(llParseStringKeepNulls(llToLower, (list)"/", []), "⁄");
-    llToLower = llDumpList2String(llParseStringKeepNulls(llToLower, (list)":", []), "꞉");
-    llToLower = llDumpList2String(llParseStringKeepNulls(llToLower, (list)",", []), "‚");
-    return llToLower;
-}
-
-integer G(key llToLower)
-{
-    return llListFindList(IsSaveDue, (list)llToLower);
-}
-
-integer _(key llToLower)
-{
-    return llListFindList(gS, (list)((string)llToLower));
-}
-
-integer b(key llToLower)
-{
-    integer loc_relayVersion;
-    integer loc_index = _(llToLower);
-    if (~loc_index)
-    {
-        loc_relayVersion = llList2Integer(gS, -~-~loc_index);
-    }
-    return loc_relayVersion;
-}
-
-integer D(key llToLower)
-{
-    integer loc_time;
-    integer loc_index = _(llToLower);
-    if (~loc_index)
-    {
-        loc_time = llList2Integer(gS, -~loc_index) + -llGetUnixTime();
-        if (loc_time < 0)
-        {
-            loc_time = 0;
-        }
-    }
-    return loc_time;
-}
-
-C(key llToLower, integer llList2Key)
-{
-    integer loc_index = _(llToLower);
-    if (~loc_index)
-    {
-        integer loc_thisTime = llGetUnixTime();
-        integer loc_oldTime = llList2Integer(gS, -~loc_index);
-        if (loc_oldTime < loc_thisTime)
-        {
-            loc_oldTime = loc_thisTime;
-        }
-        integer loc_newTime = loc_oldTime + llList2Key;
-        if (loc_newTime < 30 + loc_thisTime)
-        {
-            loc_newTime = 30 + loc_thisTime;
-        }
-        Z(llToLower, loc_newTime);
-    }
-}
-
-Z(key llToLower, integer llList2Key)
-{
-    integer loc_index = _(llToLower);
-    if (~loc_index)
-    {
-        gS = llListReplaceList(gS, (list)llList2Key, -~loc_index, -~loc_index);
-        llMessageLinked(((integer)-1), ((integer)-8010), "setTimer," + (string)llToLower + "," + (string)llList2Key, "00000000-0000-0000-0000-000000000000");
-    }
-}
-
-string O(key llToLower)
-{
-    integer loc_runningTimeS = D(llToLower);
-    if (!loc_runningTimeS)
-    {
-        return "Timer: " + "--:--:--" + "\n";
-    }
-    integer loc_runningTimeM = loc_runningTimeS / 60;
-    loc_runningTimeS = loc_runningTimeS % 60;
-    integer loc_runningTimeH = loc_runningTimeM / 60;
-    loc_runningTimeM = loc_runningTimeM % 60;
-    integer loc_runningTimeD = loc_runningTimeH / 24;
-    loc_runningTimeH = loc_runningTimeH % 24;
-    return "Timer: " + M(loc_runningTimeD, (string)loc_runningTimeD + "d ", "") + llGetSubString("0" + (string)loc_runningTimeH, ((integer)-2), ((integer)-1)) + ":" + llGetSubString("0" + (string)loc_runningTimeM, ((integer)-2), ((integer)-1)) + ":" + llGetSubString("0" + (string)loc_runningTimeS, ((integer)-2), ((integer)-1));
-}
-
-string M(integer llToLower, string llList2Key, string llSay)
-{
-    string loc_ret = llSay;
-    if (llToLower)
-    {
-        loc_ret = llList2Key;
-    }
-    return loc_ret;
-}
-
-E(integer llToLower)
-{
-    if (~llToLower)
-    {
-        llListenRemove(llList2Integer(gR, -~llToLower));
-        gR = llDeleteSubList(gR, llToLower, ~-(5 + llToLower));
-    }
-    if (gR == [])
-    {
-        llSetTimerEvent(((float)0));
-    }
-}
-
-integer L(key llToLower, string llList2Key)
-{
-    integer loc_index = ~-~-llListFindList(gR, (list)llToLower);
-    E(loc_index);
-    integer loc_channel = (integer)(((float)1000000000) + llFrand(((float)1000000000)));
-    gR = gR + 
-        [ loc_channel
-        , llListen(loc_channel, "", "", "")
-        , llToLower
-        , llList2Key
-        , 4 + llGetUnixTime()
-        ];
-    llSetTimerEvent(((float)1));
-    return loc_channel;
-}
-
-V(key llList2Key, string llToLower)
-{
-    integer loc_index = llListFindList(gT, (list)llList2Key);
-    if (~loc_index)
-    {
-        gT = llDeleteSubList(gT, loc_index, loc_index);
-        ResumeVoid = llDeleteSubList(ResumeVoid, loc_index, loc_index);
-    }
-    gT = gT + llList2Key;
-    ResumeVoid = ResumeVoid + llToLower;
-}
-
-integer I(key llToLower, key llList2Key)
-{
-    return !(~_(llToLower) | !(0 < LslUserScript));
-}
-
-integer a(key llToLower, key llList2Key)
-{
-    return !!(-!(llList2Key == "00000000-0000-0000-0000-000000000000" | ~_(llToLower)) & b(llList2Key));
-}
-
-integer T(key llToLower, key llList2Key)
-{
-    return !(llList2Key == "00000000-0000-0000-0000-000000000000" | ~_(llToLower));
-}
-
-integer H(key llToLower, key llList2Key)
-{
-    return !(llList2Key == "00000000-0000-0000-0000-000000000000" | ~_(llToLower));
-}
-
-integer S(key llToLower, key llList2Key)
-{
-    return !(llList2Key == "00000000-0000-0000-0000-000000000000" | ~_(llToLower) & -!D(llList2Key));
-}
-
-integer K(key llToLower, key llList2Key)
-{
-    return !(llList2Key == "00000000-0000-0000-0000-000000000000" | ~_(llToLower));
-}
-
-integer P(key llToLower, key llList2Key)
-{
-    return !!(3 < (gS != []) | gS != [] == 3 & llList2Key == "00000000-0000-0000-0000-000000000000");
-}
-
-list W(string llToLower, list llList2Key)
-{
-    list loc_layersWorn;
-    integer loc_length = llStringLength(llToLower);
-    integer loc_i;
-    for (; loc_i < loc_length; loc_i = -~loc_i)
-    {
-        if (llGetSubString(llToLower, loc_i, loc_i) == "1")
-        {
-            string loc_layerName = llList2String(llList2Key, loc_i);
-            if (!(loc_layerName == ""))
-            {
-                loc_layersWorn = loc_layersWorn + loc_layerName;
+            integer _index7;
+            while ((~(_index7 = llListFindList(RecaptureList,[senderAvatarId])))) {
+              {
+                (RecaptureList = llDeleteSubList(RecaptureList,_index7,((_index7 + 3) - 1)));
+              }
             }
+          }
         }
-    }
-    return loc_layersWorn;
-}
-
-default
-{
-    link_message(integer llList2Key, integer llToLower, string llSay, key llList2List)
-    {
-        if (llToLower ^ ((integer)-8013))
-            if (llToLower == ((integer)-830) | llToLower == ((integer)-832))
-            {
-                list loc_params = llParseStringKeepNulls(llSay, (list)"|", []);
-                string loc_pluginName = llList2String(loc_params, 5);
-                if (loc_pluginName == "npose_rlv+")
-                {
-                    string loc_path = llList2String(loc_params, 0);
-                    integer loc_page = (integer)llList2String(loc_params, 1);
-                    string loc_prompt = llList2String(loc_params, 2);
-                    string loc_buttons = llList2String(loc_params, 3);
-                    string loc_pluginLocalPath = llList2String(loc_params, 4);
-                    string loc_pluginMenuParams = llList2String(loc_params, 6);
-                    string loc_pluginActionParams = llList2String(loc_params, 7);
-                    key loc_selectedVictim = B(llList2List);
-                    if (llToLower ^ ((integer)-830))
-                    {
-                        if (llToLower == ((integer)-832))
-                        {
-                            list loc_buttonsList = llParseString2List(loc_buttons, (list)",", []);
-                            string loc_selection = Q(loc_pluginLocalPath, ((integer)-1), ((integer)-1));
-                            string loc_promptSelectedVictim = R(loc_selectedVictim);
-                            string loc_promptVictimMainInfo = M(!(loc_selectedVictim == "00000000-0000-0000-0000-000000000000"), "\n" + "RLV Relay: " + M(b(loc_selectedVictim), "OK", "NOT RECOGNIZED") + "\n" + O(loc_selectedVictim), "");
-                            if (loc_pluginLocalPath == "")
-                            {
-                                loc_prompt = loc_promptSelectedVictim + loc_promptVictimMainInfo;
-                                if (I(llList2List, loc_selectedVictim))
-                                {
-                                    loc_buttonsList = loc_buttonsList + "→Capture";
-                                }
-                                if (a(llList2List, loc_selectedVictim))
-                                {
-                                    loc_buttonsList = loc_buttonsList + "→Restrictions";
-                                }
-                                if (T(llList2List, loc_selectedVictim))
-                                {
-                                    loc_buttonsList = loc_buttonsList + "Release";
-                                }
-                                if (H(llList2List, loc_selectedVictim))
-                                {
-                                    loc_buttonsList = loc_buttonsList + "Unsit";
-                                }
-                                if (S(llList2List, loc_selectedVictim))
-                                {
-                                    loc_buttonsList = loc_buttonsList + "→Timer";
-                                }
-                                if (P(llList2List, loc_selectedVictim))
-                                {
-                                    loc_buttonsList = loc_buttonsList + "→Victims";
-                                }
-                            }
-                            else if (loc_pluginLocalPath == "→Capture")
-                            {
-                                if (!(LslUserScript == ((float)0)))
-                                {
-                                    V(llList2List, llSay);
-                                    llSensor("", "", 1, LslUserScript, ((float)4));
-                                    return;
-                                }
-                            }
-                            else if (loc_pluginLocalPath == "→Restrictions")
-                            {
-                                integer loc_channel = L(llList2List, llSay);
-                                llMessageLinked(((integer)-1), ((integer)-8010), "rlvCommand," + (string)loc_selectedVictim + ",@getstatus=" + (string)loc_channel, "00000000-0000-0000-0000-000000000000");
-                                return;
-                            }
-                            else if (loc_pluginLocalPath == X((list)"→Restrictions" + "→Undress"))
-                            {
-                                integer loc_channel = L(llList2List, llSay);
-                                llMessageLinked(((integer)-1), ((integer)-8010), "rlvCommand," + (string)loc_selectedVictim + ",@getoutfit=" + (string)loc_channel, "00000000-0000-0000-0000-000000000000");
-                                return;
-                            }
-                            else if (loc_pluginLocalPath == X((list)"→Restrictions" + "→Attachments"))
-                            {
-                                integer loc_channel = L(llList2List, llSay);
-                                llMessageLinked(((integer)-1), ((integer)-8010), "rlvCommand," + (string)loc_selectedVictim + ",@getattach=" + (string)loc_channel, "00000000-0000-0000-0000-000000000000");
-                                return;
-                            }
-                            else if (-(Q(loc_pluginLocalPath, 0, 0) == "→Restrictions") & ~llListFindList(gV, (list)loc_selection))
-                            {
-                                integer loc_channel = L(llList2List, llSay);
-                                llMessageLinked(((integer)-1), ((integer)-8010), "rlvCommand," + (string)loc_selectedVictim + ",@getstatus=" + (string)loc_channel, "00000000-0000-0000-0000-000000000000");
-                                return;
-                            }
-                            else if (loc_pluginLocalPath == "→Timer")
-                            {
-                                loc_prompt = loc_prompt + ("\n" + O(loc_selectedVictim));
-                                loc_buttonsList = loc_buttonsList + gZ;
-                                if (K(llList2List, loc_selectedVictim))
-                                {
-                                    loc_buttonsList = loc_buttonsList + Pop;
-                                }
-                                loc_prompt = loc_promptSelectedVictim + loc_promptVictimMainInfo;
-                            }
-                            else if (loc_pluginLocalPath == "→Victims")
-                            {
-                                loc_prompt = loc_prompt + (loc_promptSelectedVictim + "\n" + "Select new active victim.");
-                                integer loc_index;
-                                integer loc_length = gS != [];
-                                for (; loc_index < loc_length; loc_index = 3 + loc_index)
-                                {
-                                    key loc_avatarKey = (key)llList2String(gS, loc_index);
-                                    string loc_avatarName;
-                                    if (ga)
-                                    {
-                                        loc_avatarName = llGetDisplayName(loc_avatarKey);
-                                    }
-                                    else
-                                    {
-                                        loc_avatarName = llKey2Name(loc_avatarKey);
-                                    }
-                                    loc_avatarName = A(loc_avatarName);
-                                    if (loc_avatarKey == loc_selectedVictim)
-                                    {
-                                        loc_avatarName = "⚫" + loc_avatarName + "⚫";
-                                    }
-                                    loc_buttonsList = loc_buttonsList + ("/*" + (string)loc_avatarKey + "*/" + loc_avatarName);
-                                }
-                            }
-                            llMessageLinked(((integer)-1), ((integer)-833), F(loc_path, loc_page, loc_prompt, loc_buttonsList, (list)loc_pluginLocalPath + loc_pluginName + loc_pluginMenuParams + loc_pluginActionParams), llList2List);
-                        }
-                    }
-                    else
-                    {
-                        string loc_pluginBasePath = N(loc_path, loc_pluginLocalPath);
-                        string loc_pluginLocalPathPart0 = Q(loc_pluginLocalPath, 0, 0);
-                        string loc_pluginLocalPathPart1 = Q(loc_pluginLocalPath, 1, 1);
-                        string loc_pluginLocalPathPart2 = Q(loc_pluginLocalPath, 2, 2);
-                        integer loc_pipeActionThroughCore;
-                        if (!(loc_pluginLocalPath == ""))
-                            if (loc_pluginLocalPath == "Unsit")
-                            {
-                                if (H(llList2List, loc_selectedVictim))
-                                {
-                                    if (loc_selectedVictim)
-                                    {
-                                        llMessageLinked(((integer)-1), ((integer)-8010), "unsit," + (string)loc_selectedVictim, "00000000-0000-0000-0000-000000000000");
-                                        loc_pipeActionThroughCore = 1;
-                                    }
-                                }
-                                loc_path = loc_pluginBasePath;
-                            }
-                            else if (loc_pluginLocalPath == "Release")
-                            {
-                                if (T(llList2List, loc_selectedVictim))
-                                {
-                                    if (loc_selectedVictim)
-                                    {
-                                        llMessageLinked(((integer)-1), ((integer)-8010), "release," + (string)loc_selectedVictim, "00000000-0000-0000-0000-000000000000");
-                                        loc_pipeActionThroughCore = 1;
-                                    }
-                                }
-                                loc_path = loc_pluginBasePath;
-                            }
-                            else if (loc_pluginLocalPathPart0 == "→Capture")
-                            {
-                                if (I(llList2List, loc_selectedVictim))
-                                {
-                                    if (!(loc_pluginLocalPathPart1 == ""))
-                                    {
-                                        key loc_avatarToCapture = (key)U(loc_pluginLocalPathPart1);
-                                        if (loc_avatarToCapture)
-                                        {
-                                            llMessageLinked(((integer)-1), ((integer)-8010), "grab," + (string)loc_avatarToCapture, "00000000-0000-0000-0000-000000000000");
-                                            loc_pipeActionThroughCore = 1;
-                                            llSleep(((float)2));
-                                        }
-                                        loc_path = loc_pluginBasePath;
-                                    }
-                                }
-                                else
-                                {
-                                    loc_path = loc_pluginBasePath;
-                                }
-                            }
-                            else if (loc_pluginLocalPathPart0 == "→Restrictions")
-                            {
-                                if (a(llList2List, loc_selectedVictim))
-                                {
-                                    if (!(loc_pluginLocalPathPart2 == ""))
-                                    {
-                                        if (~llListFindList(LslLibrary, (list)loc_pluginLocalPathPart2))
-                                        {
-                                            llMessageLinked(((integer)-1), ((integer)-8010), "rlvCommand," + (string)loc_selectedVictim + ",@remattach:" + loc_pluginLocalPathPart2 + "=force", "00000000-0000-0000-0000-000000000000");
-                                        }
-                                        else if (~llListFindList(gU, (list)loc_pluginLocalPathPart2))
-                                        {
-                                            llMessageLinked(((integer)-1), ((integer)-8010), "rlvCommand," + (string)loc_selectedVictim + ",@remoutfit:" + loc_pluginLocalPathPart2 + "=force", "00000000-0000-0000-0000-000000000000");
-                                        }
-                                        else if (llGetSubString(loc_pluginLocalPathPart2, 0, 0) == "☐")
-                                        {
-                                            llMessageLinked(((integer)-1), ((integer)-8010), "rlvCommand," + (string)loc_selectedVictim + ",@" + llStringTrim(llDeleteSubString(loc_pluginLocalPathPart2, 0, 1), 3) + "=n", "00000000-0000-0000-0000-000000000000");
-                                        }
-                                        else if (llGetSubString(loc_pluginLocalPathPart2, 0, 0) == "☑")
-                                        {
-                                            llMessageLinked(((integer)-1), ((integer)-8010), "rlvCommand," + (string)loc_selectedVictim + ",@" + llStringTrim(llDeleteSubString(loc_pluginLocalPathPart2, 0, 1), 3) + "=y", "00000000-0000-0000-0000-000000000000");
-                                        }
-                                        llSleep(((float)2));
-                                        loc_path = J(loc_path, ((integer)-1), ((integer)-1));
-                                    }
-                                }
-                                else
-                                {
-                                    loc_path = loc_pluginBasePath;
-                                }
-                            }
-                            else if (loc_pluginLocalPathPart0 == "→Victims")
-                            {
-                                if (P(llList2List, loc_selectedVictim))
-                                {
-                                    if (!(loc_pluginLocalPathPart1 == ""))
-                                    {
-                                        key loc_avatarToSelect = (key)U(loc_pluginLocalPathPart1);
-                                        Y(llList2List, loc_avatarToSelect);
-                                        loc_path = loc_pluginBasePath;
-                                    }
-                                }
-                                else
-                                {
-                                    loc_path = loc_pluginBasePath;
-                                }
-                            }
-                            else if (loc_pluginLocalPathPart0 == "→Timer")
-                            {
-                                if (S(llList2List, loc_selectedVictim))
-                                {
-                                    if (!(loc_pluginLocalPathPart1 == ""))
-                                    {
-                                        integer loc_time = (integer)U(loc_pluginLocalPathPart1);
-                                        if (0 < loc_time | K(llList2List, loc_selectedVictim))
-                                        {
-                                            if (loc_time)
-                                            {
-                                                C(loc_selectedVictim, loc_time);
-                                            }
-                                            else
-                                            {
-                                                Z(loc_selectedVictim, 0);
-                                            }
-                                        }
-                                        loc_path = X((list)loc_pluginBasePath + "→Timer");
-                                    }
-                                }
-                                else
-                                {
-                                    loc_path = loc_pluginBasePath;
-                                }
-                            }
-                            else
-                            {
-                                loc_path = loc_pluginBasePath;
-                            }
-                        string loc_paramSet1 = F(loc_path, loc_page, loc_prompt, (list)loc_buttons, (list)loc_pluginLocalPath + loc_pluginName + loc_pluginMenuParams + loc_pluginActionParams);
-                        if (loc_pipeActionThroughCore)
-                        {
-                            llMessageLinked(((integer)-1), ((integer)-8016), loc_paramSet1, llList2List);
-                        }
-                        else
-                        {
-                            llMessageLinked(((integer)-1), ((integer)-831), loc_paramSet1, llList2List);
-                        }
-                    }
+        else  if ((command == RLV_RELAY_API_COMMAND_PING)) {
+          if (((cmd_name == command) && (reply == command))) {
+            recaptureListRemoveTimedOutEntrys();
+            integer index = llListFindList(RecaptureList,[senderAvatarId]);
+            if ((~index)) {
+              if (FreeRlvEnabledSeats) {
+                (RecaptureList = llListReplaceList(RecaptureList,[(llGetUnixTime() + 60)],(index + 2),(index + 2)));
+                llSay(-1812221819,((((RLV_RELAY_API_COMMAND_PING + ",") + ((string)senderAvatarId)) + ",") + RLV_RELAY_API_COMMAND_PONG));
+              }
+              else  {
+                integer _index11;
+                while ((~(_index11 = llListFindList(RecaptureList,[senderAvatarId])))) {
+                  {
+                    (RecaptureList = llDeleteSubList(RecaptureList,_index11,((_index11 + 3) - 1)));
+                  }
                 }
+              }
             }
-            else if (llToLower ^ ((integer)-240))
-            {
-                if (llToLower == 34334)
-                {
-                    llSay(0, "Memory Used by " + llGetScriptName() + ": " + (string)llGetUsedMemory() + " of " + (string)llGetMemoryLimit() + ", Leaving " + (string)llGetFreeMemory() + " memory free.");
-                }
-            }
-            else
-            {
-                list loc_optionsToSet = llParseStringKeepNulls(llSay, (list)"~" + "|", []);
-                integer loc_length = loc_optionsToSet != [];
-                integer loc_index;
-                for (; loc_index < loc_length; ++loc_index)
-                {
-                    list loc_optionsItems = llParseString2List(llList2String(loc_optionsToSet, loc_index), (list)"=", []);
-                    string loc_optionItem = llToLower(llStringTrim(llList2String(loc_optionsItems, 0), 3));
-                    string loc_optionString = llList2String(loc_optionsItems, 1);
-                    string loc_optionSetting = llToLower(llStringTrim(loc_optionString, 3));
-                    integer loc_optionSettingFlag = !!(loc_optionSetting == "on" | (integer)loc_optionSetting);
-                    if (loc_optionItem == "rlv_grabrange")
-                    {
-                        LslUserScript = (float)loc_optionSetting;
-                    }
-                    if (loc_optionItem == "usedisplaynames")
-                    {
-                        ga = loc_optionSettingFlag;
-                    }
-                }
-            }
-        else
-        {
-            gS = llCSV2List(llSay);
+          }
         }
+      }
     }
+  }
 
-    listen(integer llSay, string llList2Key, key llList2List, string llToLower)
-    {
-        integer loc_indexUsersList;
-        string loc_prompt;
-        list loc_buttons;
-        if (~(loc_indexUsersList = llListFindList(gR, (list)llSay)))
-        {
-            key loc_menuUser = llList2Key(gR, -~-~loc_indexUsersList);
-            list loc_menuParams = llParseStringKeepNulls(llList2String(gR, 3 + loc_indexUsersList), (list)"|", []);
-            E(loc_indexUsersList);
-            string loc_localPath = llList2String(loc_menuParams, 4);
-            string loc_selection = Q(loc_localPath, ((integer)-1), ((integer)-1));
-            integer loc_restrictionsListIndex = llListFindList(gV, (list)loc_selection);
-            if (loc_localPath == "→Restrictions" | ~loc_restrictionsListIndex)
-            {
-                list loc_activeRestrictions = llParseString2List(llToLower, (list)"/", []);
-                integer loc_index;
-                integer loc_length = loc_activeRestrictions != [];
-                for (; loc_index < loc_length; ++loc_index)
-                {
-                    string loc_restrictionWorkingOn = llList2String(loc_activeRestrictions, loc_index);
-                    if (~llSubStringIndex(loc_restrictionWorkingOn, ":") | ~llListFindList((list)"acceptpermission" + "detach", (list)loc_restrictionWorkingOn))
-                    {
-                        loc_activeRestrictions = llDeleteSubList(loc_activeRestrictions, loc_index, loc_index);
-                        --loc_index;
-                        --loc_length;
-                    }
-                }
-                loc_prompt = R(B(loc_menuUser)) + "\n" + "\n";
-                loc_prompt = loc_prompt + ("Active restrictions are: " + M(loc_activeRestrictions != [], "\n" + llDumpList2String(loc_activeRestrictions, ", "), "NONE. Victim may be FREE."));
-                if (loc_localPath == "→Restrictions")
-                {
-                    loc_buttons = (list)"→Undress" + "→Attachments";
-                    loc_length = gV != [];
-                    for (loc_index = 0; loc_index < loc_length; loc_index = -~-~loc_index)
-                    {
-                        loc_buttons = loc_buttons + llList2String(gV, loc_index);
-                    }
-                }
-                else
-                {
-                    loc_prompt = loc_prompt + ("\n" + "\n" + "☑ ... set restriction active" + "\n" + "☐ ... set restriction inactive" + "\n" + "(Maybe not all retrictions can't be set inactive)");
-                    list loc_availibleRestrictions = llCSV2List(llList2String(gV, -~loc_restrictionsListIndex));
-                    loc_length = loc_availibleRestrictions != [];
-                    for (loc_index = 0; loc_index < loc_length; ++loc_index)
-                    {
-                        string loc_restrictionWorkingOn = llList2String(loc_availibleRestrictions, loc_index);
-                        if (~llListFindList(loc_activeRestrictions, (list)loc_restrictionWorkingOn))
-                        {
-                            loc_buttons = loc_buttons + ("☑ " + loc_restrictionWorkingOn);
-                        }
-                        else
-                        {
-                            loc_buttons = loc_buttons + ("☐ " + loc_restrictionWorkingOn);
-                        }
-                    }
-                }
-            }
-            else if (loc_localPath == X((list)"→Restrictions" + "→Attachments"))
-            {
-                loc_buttons = W(llToLower, LslLibrary);
-                loc_prompt = "\n" + "The following attachment points are worn:" + "\n" + llDumpList2String(loc_buttons, ", ") + "\n" + "\n" + "Click a button to try to detach this attachment" + "\n" + "(Beware some might be locked and can't be removed)";
-            }
-            else if (loc_localPath == X((list)"→Restrictions" + "→Undress"))
-            {
-                loc_buttons = W(llToLower, gU);
-                loc_prompt = "\n" + "The following clothing layers are worn:" + "\n" + llDumpList2String(loc_buttons, ", ") + "\n" + "\n" + "Click a button to try to detach this layer" + "\n" + "(Beware some might be locked and can't be removed)";
-            }
-            llMessageLinked(((integer)-1), ((integer)-833), F(llList2String(loc_menuParams, 0), 0, loc_prompt, loc_buttons, llList2List(loc_menuParams, 4, ((integer)-1))), loc_menuUser);
-        }
+    
+    collision_start(integer num_detected) {
+    if (RLV_collisionTrap) {
+      trapAvatar(llDetectedKey(0));
     }
+  }
 
-    sensor(integer llToLower)
-    {
-        list loc_sensorList;
-        integer loc_index;
-        for (; loc_index < llToLower; ++loc_index)
-        {
-            key loc_avatar = llDetectedKey(loc_index);
-            if (!~_(loc_avatar))
-            {
-                string loc_prefix = "/*" + (string)loc_avatar + "*/";
-                if (ga)
-                {
-                    loc_sensorList = loc_sensorList + (loc_prefix + A(llGetDisplayName(loc_avatar)));
-                }
-                else
-                {
-                    loc_sensorList = loc_sensorList + (loc_prefix + A(llKey2Name(loc_avatar)));
-                }
-            }
-        }
-        integer loc_length = gT != [];
-        for (loc_index = 0; loc_index < loc_length; ++loc_index)
-        {
-            list loc_params = llParseStringKeepNulls(llList2String(ResumeVoid, loc_index), (list)"|", []);
-            llMessageLinked(((integer)-1), ((integer)-833), F(llList2String(loc_params, 0), 0, "Choose someone to capture.", loc_sensorList, llList2List(loc_params, 4, ((integer)-1))), llList2Key(gT, loc_index));
-        }
-        gT = [];
-        ResumeVoid = [];
+    
+    sensor(integer num_detected) {
+    integer index;
+    for (; (index < num_detected); (index++)) {
+      if (trapAvatar(llDetectedKey(index))) {
+        return;
+      }
     }
+  }
 
-    no_sensor()
-    {
-        integer loc_length = gT != [];
-        integer loc_index;
-        for (; loc_index < loc_length; ++loc_index)
-        {
-            list loc_params = llParseStringKeepNulls(llList2String(ResumeVoid, loc_index), (list)"|", []);
-            llMessageLinked(((integer)-1), ((integer)-833), F(llList2String(loc_params, 0), 0, "There seems to be no one in range to cpature.", [], llList2List(loc_params, 4, ((integer)-1))), llList2Key(gT, loc_index));
-        }
-        gT = [];
-        ResumeVoid = [];
-    }
 
-    timer()
-    {
-        integer loc_length = gR != [];
-        integer loc_index;
-        integer loc_currentTime = llGetUnixTime();
-        for (; loc_index < loc_length; loc_index = 5 + loc_index)
-        {
-            if (llList2Integer(gR, 4 + loc_index) < loc_currentTime)
-            {
-                E(loc_index);
-                loc_index = ((integer)-5) + loc_index;
-                loc_length = ((integer)-5) + loc_length;
-            }
-        }
+    timer() {
+    integer currentTime = llGetUnixTime();
+    list tempList = VictimsList;
+    integer length = llGetListLength(tempList);
+    integer index;
+    for (; (index < length); (index += 3)) {
+      integer time = llList2Integer(tempList,(index + 1));
+      if ((time && (time <= currentTime))) {
+        llMessageLinked(-1,-8010,llDumpList2String(["release",llList2Key(tempList,index)],","),NULL_KEY);
+      }
     }
+  }
 
-    on_rez(integer llToLower)
-    {
-        llResetScript();
-    }
+    on_rez(integer start_param) {
+    llResetScript();
+  }
 }
-
